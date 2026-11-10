@@ -49,9 +49,13 @@
 
 HTML dynamique serveur via Pages Functions **ou** pré-rendu déclenché à la publication. Comparer coût, cache, cohérence et séparation entre brouillon/publication. Vérifier via `curl` et test de robot.
 
+**Essai local.** Une session admin publie le brouillon. L'URL publique répond 404 avant publication, puis un lecteur HTTP reçoit titre, description, URL canonique et corps échappé sans JavaScript. D1 rejette une mise à jour concurrente du pointeur de publication. La restauration retrouve le HTML et le SHA-256 de l'image de V1. Voir le [démonstrateur local](../prototypes/m0-pages/benchmarks/session/README.md).
+
 ### ADR-003 — Photos/versions/stocks KV **OUVERT**
 
 Tester variantes Web, compression et limites, cache à cohérence éventuelle, purge des anciennes versions, export restaurable et consommation de l'offre gratuite.
+
+**Essai local.** Le navigateur réencode en WebP. Le serveur borne le multipart à 260 ko et l'image à 250 ko et 1 600 px par côté, vérifie le conteneur VP8 simple et refuse les métadonnées. Les images sont décodées dans Edge. KV conserve une clé immuable par révision. Les pannes injectées bloquent l'upload ou la publication. Une image publiée momentanément introuvable utilise un visuel de secours sans cache. La validation complète du bitstream, la propagation en preview et l'export/import privé restent ouverts.
 
 ### ADR-004 — Authentification/notifications **OUVERT**
 

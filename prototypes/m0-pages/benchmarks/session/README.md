@@ -40,3 +40,13 @@ Le parcours Playwright vérifie aussi la récupération de `demo-a`. Il ajoute u
 La migration `0002_recovery.sql` rattache chaque session à la clé qui l'a créée. La suppression d'une clé supprime en cascade ses sessions. Les tests ont aussi vérifié la conservation d'une clé et d'une session fictives en passant de l'ancien schéma au nouveau dans SQLite.
 
 Le parcours de perte des deux clés reste ouvert. Le démonstrateur réserve l'ajout de clés à une session active et le lie à cette session. Une réauthentification récente et des contrôles de débit restent à qualifier avant une preview.
+
+## Publier et restaurer l'article
+
+Le même test Edge couvre l'article fictif `/articles/article-test`. Il génère deux PNG et les fait réencoder en WebP par le formulaire. Edge ajoute un profil ICC à la sortie de son canvas opaque. Le client le retire pour envoyer un conteneur VP8 simple. Les images publiées sont décodées dans Edge. Le HTML est inspecté sur des réponses HTTP brutes.
+
+Le test vérifie les refus anonymes et l'invisibilité du brouillon. Il publie V1 et V2, puis restaure V1 et compare son HTML et le SHA-256 de son WebP. Deux tentatives de publication concurrentes donnent un succès et un conflit. Les requêtes avec mauvais MIME, fichier trop lourd, contenu non-WebP, dimensions hors limite ou métadonnées sont refusées.
+
+D1 associe le texte à une révision et KV stocke l'image sous la clé de cette révision. Une restauration déplace le pointeur D1. Un média déjà publié reste accessible par son URL versionnée pour les pages déjà chargées. Le média d'un brouillon renvoie 404.
+
+Les pannes KV sont injectées dans les handlers pour vérifier le refus de l'upload, le report de la publication et le visuel de secours sans cache. Le serveur contrôle le conteneur sans décoder entièrement le bitstream. L'émulation locale ne reproduit pas la propagation entre régions. L'export/import dans des stockages neufs reste à tester.

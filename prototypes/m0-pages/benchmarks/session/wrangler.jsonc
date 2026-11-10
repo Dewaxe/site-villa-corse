@@ -6,6 +6,7 @@
   "preview_urls": false,
   "dev": { "ip": "127.0.0.1", "port": 8791 },
   "assets": { "directory": "./public" },
+  "kv_namespaces": [{ "binding": "IMAGES", "id": "00000000000040008000000000000001" }],
   "d1_databases": [{
     "binding": "DB",
     "database_name": "m0-session-local",

@@ -26,6 +26,20 @@
     <button id="revoke">Révoquer la clé sélectionnée</button>
     <p><button id="logout">Se déconnecter</button></p>
     <p id="status" role="status"></p>
+    <section>
+      <h2>Article de démonstration</h2>
+      <form id="draft-form">
+        <p><label>Titre <input name="title" maxlength="120" required></label></p>
+        <p><label>Description <input name="description" maxlength="240" required></label></p>
+        <p><label>Texte <textarea name="body" maxlength="4000" required></textarea></label></p>
+        <p><label>Image <input name="image" type="file" accept="image/*" required></label></p>
+        <button id="save-draft" type="button">Enregistrer le brouillon</button>
+      </form>
+      <p><button id="load-revisions">Actualiser les révisions</button></p>
+      <label>Révision <select id="revisions"></select></label>
+      <button id="publish">Publier ou restaurer</button>
+      <p><a href="/articles/article-test">Voir l’article publié</a></p>
+    </section>
   </main>
 </body>
 </html>

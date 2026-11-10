@@ -1,3 +1,4 @@
+import { checkArticle } from "./article-check.js";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { parseEnv } from "node:util";
@@ -138,6 +139,8 @@ try {
       assert.deepEqual(await (await context.request.get(origin + "/api/keys")).json(), [spareId]);
       assert.equal((await post("/api/keys/revoke", { id: spareId })).status(), 409);
     }
+
+    if (account === "demo-a") await checkArticle(page, context, waitForStatus);
 
     await page.click("#logout");
     await waitForStatus("Session révoquée.");

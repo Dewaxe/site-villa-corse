@@ -1,3 +1,4 @@
+import { adminArticle, publicArticle } from "./articles.js";
 import { Buffer } from "node:buffer";
 import { timingSafeEqual } from "node:crypto";
 import {
@@ -198,6 +199,18 @@ export default {
     const url = new URL(request.url);
     if (url.origin !== origin) return deny();
     const path = url.pathname;
+
+    const publicResponse = publicArticle(request, DB, env.IMAGES, url);
+    if (publicResponse) return publicResponse;
+
+    if (path === "/api/articles" || path.startsWith("/api/articles/")) {
+      if (request.method !== "GET" && request.headers.get("Origin") !== origin) return deny();
+      const token = sessionToken(request);
+      if (!token || !(await activeSession(DB, await tokenHash(token)))) return deny();
+      return adminArticle(request, DB, env.IMAGES, path);
+    }
+
+
 
     if (path === "/api/session" && request.method === "GET") {
       const token = sessionToken(request);
