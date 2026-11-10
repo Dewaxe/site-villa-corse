@@ -80,6 +80,8 @@ Tester variantes Web, compression et limites, cache à cohérence éventuelle, p
 
 **Publication différée locale.** Le banc SQLite/Wasm lie un résultat à la révision et à l’empreinte du fichier. Un flux tronqué, une panne ou une empreinte différente laissent la publication intacte. Le changement de version est atomique et le résultat rejoué est sans effet supplémentaire. Le transfert authentifié, le réencodage et GitHub Actions restent à vérifier. [Banc](../prototypes/m0-pages/benchmarks/image-publication/README.md).
 
+**Transfert GitHub réel.** Un runner standard a récupéré et décodé une image fictive en mémoire, puis confirmé le résultat deux fois à Pages. D1 confirme le témoin et aucun artefact n’a été créé. Le secret GitHub temporaire a été supprimé. Le déclenchement par l’admin, le transit par révision et le réencodage restent ouverts. [Preuve](../prototypes/m0-pages/benchmarks/image-publication/README.md#transfert-privé-vérifié-sur-github-actions).
+
 ### ADR-004 — Authentification/notifications **OUVERT**
 
 Choisir stratégie session/passwords/anti-brute-force compatible runtime et méthode d'alerte au propriétaire sans risque de paiement, avec tests d'attaque et reprise.
