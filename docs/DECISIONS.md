@@ -76,6 +76,8 @@ Tester variantes Web, compression et limites, cache à cohérence éventuelle, p
 
 **Premier essai du binding.** Wrangler local produit un WebP lisible à 320 × 320. Le flux tronqué et les pannes simulées sont refusés. Le dérivé local de la grande image dépasse le poids autorisé. Le plan du compte, le comportement réel et le CPU hébergé restent à qualifier. [Banc et limites](../prototypes/m0-pages/benchmarks/images-binding/README.md).
 
+**Arbitrage sur le compte de test.** Le tableau de bord demande une carte pour activer Cloudflare Images. L’option est écartée pour M0. William souhaite conserver le même nombre de manipulations pour les deux administrateurs. Prototyper en priorité le traitement automatique via GitHub Actions standard sur le dépôt public, en gardant les octets hors du dépôt et des artefacts. L’outil local manuel reste une variante qui modifierait le parcours admin.
+
 ### ADR-004 — Authentification/notifications **OUVERT**
 
 Choisir stratégie session/passwords/anti-brute-force compatible runtime et méthode d'alerte au propriétaire sans risque de paiement, avec tests d'attaque et reprise.
