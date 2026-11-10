@@ -148,17 +148,26 @@ async function login(db, path, body, origin, previousToken) {
     return json(options);
   }
 
-  const challenge = await consumeChallenge(db, body.challenge, account, "login");
-  if (!challenge || typeof body.response?.id !== "string") return deny();
-  const saved = await db.prepare("SELECT * FROM credentials WHERE id = ? AND account = ?")
-    .bind(body.response.id, account).first();
-  if (!saved) return deny();
+  if (typeof body.challenge !== "string") return deny();
+  const id = typeof body.response?.id === "string" ? body.response.id : null;
+  // Consume the challenge and read its account's credential in one D1 call.
+  const consumed = await db.prepare(`
+    DELETE FROM challenges
+    WHERE challenge = ? AND account = ? AND purpose = 'login'
+      AND expires_at > ? AND session_hash IS NULL
+    RETURNING challenge, (
+      SELECT json_object('id', id, 'public_key', public_key, 'counter', counter)
+      FROM credentials WHERE id = ? AND account = ?
+    ) AS credential
+  `).bind(body.challenge, account, Date.now(), id, account).first();
+  if (!consumed?.credential) return deny();
+  const saved = JSON.parse(consumed.credential);
 
   let result;
   try {
     result = await verifyAuthenticationResponse({
       response: body.response,
-      expectedChallenge: challenge.challenge,
+      expectedChallenge: consumed.challenge,
       expectedOrigin: origin,
       expectedRPID: rpID,
       requireUserVerification: true,

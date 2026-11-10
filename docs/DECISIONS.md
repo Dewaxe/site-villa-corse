@@ -85,6 +85,8 @@ Choisir stratégie session/passwords/anti-brute-force compatible runtime et mét
 
 **Sonde sans D1.** Sur 24 signatures synthétiques acceptées, Pages estime 2,066 ms en médiane et 5,986 ms au p95. Le parcours complet reste à caractériser. [Protocole et limites](../prototypes/m0-pages/auth-preview/README.md#sonde-de-vérification-sans-d1).
 
+**Réduction des appels D1.** La vérification consomme le défi et récupère la clé du compte en une instruction. Le traitement conserve la limite de tentatives et le contrôle du compteur lors de la création de session. Le nombre d’allers-retours D1 d’une vérification réussie passe de quatre à trois. Le gain CPU en preview reste à mesurer.
+
 ### ADR-005 — Cartographie aérienne **OUVERT**
 
 Étudier IGN WMTS/couverture Cargèse, attribution, fallback plan, bibliothèques de tracé et performance. Prototype tôt, implémentation finale M4.
