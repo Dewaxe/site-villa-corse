@@ -49,4 +49,22 @@ Le test vérifie les refus anonymes et l'invisibilité du brouillon. Il publie V
 
 D1 associe le texte à une révision et KV stocke l'image sous la clé de cette révision. Une restauration déplace le pointeur D1. Un média déjà publié reste accessible par son URL versionnée pour les pages déjà chargées. Le média d'un brouillon renvoie 404.
 
-Les pannes KV sont injectées dans les handlers pour vérifier le refus de l'upload, le report de la publication et le visuel de secours sans cache. Le serveur contrôle le conteneur sans décoder entièrement le bitstream. L'émulation locale ne reproduit pas la propagation entre régions. L'export/import dans des stockages neufs reste à tester.
+Les pannes KV sont injectées dans les handlers pour vérifier le refus de l'upload, le report de la publication et le visuel de secours sans cache. Le serveur contrôle le conteneur sans décoder entièrement le bitstream. L'émulation locale ne reproduit pas la propagation entre régions.
+
+## Restaurer depuis une sauvegarde D1/KV
+
+Après le test navigateur, arrêter le serveur source pour figer les écritures. Utiliser le nom de son répertoire sous `.wrangler/`, sans le préfixe `.wrangler/`. Depuis `prototypes/m0-pages` :
+
+```powershell
+$source = 'session-remplacer-par-le-nom-observe'
+$backup = 'exercice-m0'
+$cible = 'restore-exercice-m0'
+node benchmarks/session/backup.js export $source $backup
+node benchmarks/session/backup.js restore $cible $backup
+```
+
+Le dossier ignoré `backups/<nom>` contient un manifeste JSON des révisions D1 et du pointeur publié, son SHA-256 et les binaires WebP accompagnés de leurs empreintes. La restauration vérifie chaque élément avant de créer la cible. Elle initialise D1, écrit les images vérifiées dans KV, puis importe les révisions et leur pointeur. Les commandes Wrangler utilisent toujours `--local`. Les identifiants d'accès, clés de connexion, défis et sessions sont exclus. Si un import est interrompu, garder la cible hors service et recommencer sous un nouveau nom. Une cible déjà existante est refusée.
+
+Pour vérifier les réponses HTTP, démarrer la source avec la configuration du démonstrateur et son ancien `--persist-to`, puis exécuter `node benchmarks/session/backup-http-check.js capture $backup`. Arrêter la source. Démarrer ensuite le démonstrateur avec `--persist-to ".wrangler/$cible"` et exécuter `node benchmarks/session/backup-http-check.js compare $backup`. Les deux serveurs utilisent le même port local, ce qui permet de comparer le HTML complet avec son URL canonique.
+
+L'exercice a reconstruit deux révisions et deux images publiées. Le HTML et les empreintes des images étaient identiques via HTTP. La cible contenait zéro clé de connexion, zéro défi et zéro session. Un fichier modifié d'un octet et un fichier absent ont été refusés avant création de la cible. Les SHA-256 détectent les altérations accidentelles. Le prototype ne signe ni ne chiffre la sauvegarde. Cet exercice ne couvre pas la reprise des comptes ni le retour à un ancien déploiement.

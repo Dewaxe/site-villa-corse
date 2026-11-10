@@ -55,7 +55,9 @@ HTML dynamique serveur via Pages Functions **ou** pré-rendu déclenché à la p
 
 Tester variantes Web, compression et limites, cache à cohérence éventuelle, purge des anciennes versions, export restaurable et consommation de l'offre gratuite.
 
-**Essai local.** Le navigateur réencode en WebP. Le serveur borne le multipart à 260 ko et l'image à 250 ko et 1 600 px par côté, vérifie le conteneur VP8 simple et refuse les métadonnées. Les images sont décodées dans Edge. KV conserve une clé immuable par révision. Les pannes injectées bloquent l'upload ou la publication. Une image publiée momentanément introuvable utilise un visuel de secours sans cache. La validation complète du bitstream, la propagation en preview et l'export/import privé restent ouverts.
+**Essai local.** Le navigateur réencode en WebP. Le serveur borne le multipart à 260 ko et l'image à 250 ko et 1 600 px par côté, vérifie le conteneur VP8 simple et refuse les métadonnées. Les images sont décodées dans Edge. KV conserve une clé immuable par révision. Les pannes injectées bloquent l'upload ou la publication. Une image publiée momentanément introuvable utilise un visuel de secours sans cache. La validation complète du bitstream, la propagation en preview et la procédure de sauvegarde hébergée restent ouvertes.
+
+**Sauvegarde locale testée.** Un export hors ligne a réuni deux révisions D1, le pointeur publié et deux binaires KV avec SHA-256. L'import dans un état local neuf restitue les mêmes réponses HTML et WebP, sans réintroduire les clés d'accès, défis ou sessions. Un média absent ou modifié est refusé avant création de la cible. Voir les [commandes de restauration](../prototypes/m0-pages/benchmarks/session/README.md). La copie privée en environnement hébergé et le retour de déploiement restent à vérifier.
 
 ### ADR-004 — Authentification/notifications **OUVERT**
 
