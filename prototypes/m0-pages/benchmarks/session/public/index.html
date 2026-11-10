@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Essai local des clés d’accès</title>
+  <script src="/client.js" type="module"></script>
+</head>
+<body>
+  <main>
+    <h1>Essai local des clés d’accès</h1>
+    <label for="account">Compte de démonstration</label>
+    <select id="account">
+      <option value="demo-a">Compte A</option>
+      <option value="demo-b">Compte B</option>
+    </select>
+    <label for="invite">Invitation locale</label>
+    <input id="invite" type="password" autocomplete="off">
+    <p><button id="register">Ajouter une clé</button></p>
+    <p><button id="login">Se connecter</button></p>
+    <p><button id="logout">Se déconnecter</button></p>
+    <p id="status" role="status"></p>
+  </main>
+</body>
+</html>

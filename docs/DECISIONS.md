@@ -65,6 +65,8 @@ Choisir stratégie session/passwords/anti-brute-force compatible runtime et mét
 
 **Suite à vérifier.** Tester l'enrôlement et la connexion en navigateur avec deux comptes préautorisés. Stocker les défis à usage unique et les sessions révocables dans D1 avec une consommation atomique des défis. Essayer une deuxième clé d'accès par compte sur un appareil indépendant et la révocation de la clé perdue, puis définir un réenrôlement contrôlé si les deux clés sont perdues. Ces parcours et le budget CPU doivent être démontrés avant l'adoption.
 
+**Parcours Edge et D1 local.** Deux comptes fictifs ont chacun enrôlé une clé et ouvert une session dans Edge avec un authentificateur virtuel. D1 consomme le défi atomiquement. Sur deux vérifications concurrentes de la même assertion, une seule réussit. Le cookie de session est protégé, son empreinte est stockée en base, et les anciens cookies sont refusés après reconnexion et déconnexion. Un logout provenant d'une autre origine est refusé. Voir le [démonstrateur](../prototypes/m0-pages/benchmarks/session/README.md). Les clés de secours et le réenrôlement, l'expiration en conditions réelles, les appareils physiques, les limites de requêtes et le CPU en preview restent à vérifier.
+
 ### ADR-005 — Cartographie aérienne **OUVERT**
 
 Étudier IGN WMTS/couverture Cargèse, attribution, fallback plan, bibliothèques de tracé et performance. Prototype tôt, implémentation finale M4.
