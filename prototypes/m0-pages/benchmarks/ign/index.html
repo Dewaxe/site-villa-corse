@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Essai orthophoto IGN à Cargèse</title>
+  <link rel="stylesheet" href="./map.css">
+  <script type="module" src="./map.js"></script>
+</head>
+<body>
+  <main>
+    <h1>Essai orthophoto IGN à Cargèse</h1>
+    <p>Le tracé est fictif. Il sert à tester la superposition et ne doit pas être suivi.</p>
+    <div class="controls">
+      <button id="ortho" type="button">Afficher les photos aériennes</button>
+      <button id="plan" type="button">Afficher le schéma</button>
+      <label>Zoom
+        <select id="zoom">
+          <option value="15">15</option>
+          <option value="17">17</option>
+        </select>
+      </label>
+    </div>
+    <p id="map-status" role="status">Schéma affiché.</p>
+    <figure>
+      <div class="map" aria-hidden="true">
+        <div id="tiles" hidden></div>
+        <svg viewBox="0 0 512 384" class="trace">
+          <polyline id="outline"/>
+          <polyline id="line"/>
+          <circle id="start" r="8"/>
+          <circle id="end" r="8"/>
+        </svg>
+      </div>
+      <figcaption>
+        <p>Tracé d’essai autour de Cargèse. Le repère de départ est au sud-ouest du repère d’arrivée.</p>
+        <p id="credit" hidden>Photographies aériennes © IGN, BD ORTHO® ·
+          <a href="https://www.data.gouv.fr/datasets/bd-ortho-r">Source et Licence Ouverte 2.0</a> ·
+          <a href="https://data.geopf.fr/annexes/ressources/fiches/photographies-aeriennes-RVB/geoportail_dates_des_prises_de_vues_aeriennes-RVB.pdf">Dates de prise de vue</a>
+        </p>
+      </figcaption>
+    </figure>
+  </main>
+</body>
+</html>

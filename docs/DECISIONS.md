@@ -79,6 +79,8 @@ Choisir stratégie session/passwords/anti-brute-force compatible runtime et mét
 
 Étudier IGN WMTS/couverture Cargèse, attribution, fallback plan, bibliothèques de tracé et performance. Prototype tôt, implémentation finale M4.
 
+**Essai M0 du 10/11/2026.** Le service WMTS public annonce la couche `ORTHOIMAGERY.ORTHOPHOTOS`, le style `normal`, le JPEG et la matrice `PM_0_19`. Sur Cargèse, deux tuiles centrales répondent et le [démonstrateur](../prototypes/m0-pages/benchmarks/ign/README.md) affiche les vues à deux zooms dans Edge, avec crédit IGN et liens vers la licence et les dates de prise de vue. Une panne simulée conserve le schéma, le tracé fictif et sa description. Aucun itinéraire réel, appareil mobile physique ni bibliothèque de carte n'est validé par cet essai. [WMTS Géoplateforme](https://cartes.gouv.fr/aide/fr/guides-utilisateur/utiliser-les-services-de-la-geoplateforme/diffusion/wmts/), [jeu de données BD ORTHO](https://www.data.gouv.fr/datasets/bd-ortho-r).
+
 ### ADR-006 — Mesure visiteurs uniques sans profilage **OUVERT**
 
 Méthode de décompte et limites, périmètre temporel, information RGPD, absence de cookie de mesure non exempté, résistance aux bots et preuve de clic Amivac.
