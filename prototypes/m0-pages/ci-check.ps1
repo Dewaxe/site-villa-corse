@@ -11,6 +11,7 @@ $stdout = Join-Path $private 'wrangler.log'
 $stderr = Join-Path $private 'wrangler-error.log'
 $inviteFile = Join-Path $private 'invites.env'
 $previousInviteFile = $env:M0_INVITES_FILE
+$previousSessionState = $env:M0_SESSION_STATE
 $previousMetrics = $env:WRANGLER_SEND_METRICS
 
 function Invoke-Node {
@@ -71,9 +72,11 @@ try {
   $inviteB = New-Invite
   [System.IO.File]::WriteAllText($inviteFile, "INVITE_A=$inviteA`nINVITE_B=$inviteB`n")
   $env:M0_INVITES_FILE = $inviteFile
+  $env:M0_SESSION_STATE = $source
   $env:WRANGLER_SEND_METRICS = 'false'
 
   foreach ($file in (git ls-files -- '*.js')) { Invoke-Node --check $file }
+  Invoke-Node --test benchmarks/session/hardening.test.js
   Invoke-WithWrangler 8788 '/api/health' @(
     'pages', 'dev', 'public', '--ip', '127.0.0.1', '--port', '8788',
     '--compatibility-date', '2026-10-06', '--persist-to', ".wrangler/$name/pages"
@@ -99,6 +102,7 @@ try {
   Invoke-Node benchmarks/ign/check.js
 } finally {
   $env:M0_INVITES_FILE = $previousInviteFile
+  $env:M0_SESSION_STATE = $previousSessionState
   $env:WRANGLER_SEND_METRICS = $previousMetrics
   foreach ($relative in ".wrangler/$name", ".wrangler/$source", ".wrangler/$target", "backups/$name") {
     $expected = [System.IO.Path]::GetFullPath((Join-Path $project $relative))

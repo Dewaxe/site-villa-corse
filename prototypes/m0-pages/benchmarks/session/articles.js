@@ -1,4 +1,5 @@
 import { isDemoWebP, readDraftForm } from "./webp.js";
+import { readJson, requestErrorStatus } from "./request-limits.js";
 
 const articlePath = "/articles/article-test";
 const mediaPrefix = "/media/article/";
@@ -59,7 +60,12 @@ export function publicArticle(request, db, images, url) {
 }
 
 async function createDraft(request, db, images) {
-  const form = await readDraftForm(request);
+  let form;
+  try {
+    form = await readDraftForm(request);
+  } catch (error) {
+    return json({ error: "Upload invalide ou trop volumineux." }, requestErrorStatus(error));
+  }
   const fields = ["title", "description", "body"].map((name) => form?.get(name));
   if (fields.some((value, index) => typeof value !== "string" || !value.trim() ||
       value.length > [120, 240, 4_000][index])) return json({ error: "Champs invalides." }, 400);
@@ -81,9 +87,9 @@ async function createDraft(request, db, images) {
 async function publish(request, db, images) {
   let data;
   try {
-    data = await request.json();
-  } catch {
-    return json({ error: "Requête invalide." }, 400);
+    data = await readJson(request, 1_024);
+  } catch (error) {
+    return json({ error: "Requête invalide." }, requestErrorStatus(error));
   }
   if (typeof data?.id !== "string" || !Number.isSafeInteger(data?.version) || data.version < 0) {
     return json({ error: "Révision ou version invalide." }, 400);

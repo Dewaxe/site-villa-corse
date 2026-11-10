@@ -1,4 +1,6 @@
 import { adminArticle, publicArticle } from "./articles.js";
+import { readJson, requestErrorStatus } from "./request-limits.js";
+import { takeAttempt } from "./rate-limit.js";
 import { Buffer } from "node:buffer";
 import { timingSafeEqual } from "node:crypto";
 import {
@@ -13,6 +15,13 @@ const rpID = "localhost";
 const cookie = "__Host-m0_session";
 const cookieAttrs = "Path=/; HttpOnly; Secure; SameSite=Strict";
 const sessionLifetime = 15 * 60;
+const recentWindow = 2 * 60_000;
+const limits = { register: 12, login: 24, keys: 12, articles: 24 };
+const authScopes = new Map([
+  ["/api/register/options", "register"], ["/api/register/verify", "register"],
+  ["/api/login/options", "login"], ["/api/login/verify", "login"],
+  ["/api/keys/options", "keys"], ["/api/keys/verify", "keys"], ["/api/keys/revoke", "keys"],
+]);
 const accounts = new Map([["demo-a", "INVITE_A"], ["demo-b", "INVITE_B"]]);
 
 function json(body, status = 200, headers = {}) {
@@ -20,6 +29,8 @@ function json(body, status = 200, headers = {}) {
 }
 
 const deny = () => json({ error: "Accès refusé." }, 401);
+const needRecentLogin = () => json({ error: "Reconnecte-toi avec une clé pour modifier tes clés." }, 403);
+const tooMany = () => json({ error: "Trop de tentatives. Réessaie dans une minute." }, 429, { "Retry-After": "60" });
 const encode = (bytes) => Buffer.from(bytes).toString("base64url");
 const decode = (value) => new Uint8Array(Buffer.from(value, "base64url"));
 
@@ -43,7 +54,7 @@ function canEnroll(env, account, invite) {
 
 async function activeSession(db, hash) {
   if (!hash) return null;
-  return db.prepare("SELECT account FROM sessions WHERE token_hash = ? AND expires_at > ?")
+  return db.prepare("SELECT account, authenticated_at FROM sessions WHERE token_hash = ? AND expires_at > ?")
     .bind(hash, Date.now()).first();
 }
 
@@ -110,9 +121,10 @@ async function register(db, path, body, sessionHash = null) {
     ? db.prepare(`
         INSERT INTO credentials
         SELECT ?, ?, ?, ? WHERE EXISTS (
-          SELECT 1 FROM sessions WHERE token_hash = ? AND account = ? AND expires_at > ?
+          SELECT 1 FROM sessions WHERE token_hash = ? AND account = ? AND expires_at > ? AND authenticated_at >= ?
         ) ON CONFLICT DO NOTHING
-      `).bind(credential.id, account, encode(credential.publicKey), credential.counter, sessionHash, account, Date.now())
+      `).bind(credential.id, account, encode(credential.publicKey), credential.counter, sessionHash, account,
+        Date.now(), Date.now() - recentWindow)
     : db.prepare(`
         INSERT INTO credentials
         SELECT ?, ?, ?, ? WHERE NOT EXISTS (
@@ -159,12 +171,15 @@ async function login(db, path, body, previousToken) {
   const token = encode(crypto.getRandomValues(new Uint8Array(32)));
   const hash = await tokenHash(token);
   const previousHash = previousToken ? await tokenHash(previousToken) : null;
-  const expiresAt = Date.now() + sessionLifetime * 1_000;
+  const authenticatedAt = Date.now();
+  const expiresAt = authenticatedAt + sessionLifetime * 1_000;
   const [update, insert] = await db.batch([
     db.prepare("UPDATE credentials SET counter = ? WHERE id = ? AND counter = ?")
       .bind(result.authenticationInfo.newCounter, saved.id, saved.counter),
-    db.prepare("INSERT INTO sessions SELECT ?, ?, ?, ? WHERE changes() = 1")
-      .bind(hash, account, expiresAt, saved.id),
+    db.prepare(`
+      INSERT INTO sessions (token_hash, account, expires_at, credential_id, authenticated_at)
+      SELECT ?, ?, ?, ?, ? WHERE changes() = 1
+    `).bind(hash, account, expiresAt, saved.id, authenticatedAt),
     db.prepare(`
       DELETE FROM sessions
       WHERE expires_at <= ?
@@ -185,9 +200,11 @@ async function revokeKey(db, account, id, sessionHash) {
     DELETE FROM credentials
     WHERE id = ? AND account = ?
       AND EXISTS (SELECT 1 FROM credentials WHERE account = ? AND id <> ?)
-      AND EXISTS (SELECT 1 FROM sessions WHERE token_hash = ? AND account = ? AND expires_at > ?)
+      AND EXISTS (
+        SELECT 1 FROM sessions WHERE token_hash = ? AND account = ? AND expires_at > ? AND authenticated_at >= ?
+      )
     RETURNING id
-  `).bind(id, account, account, id, sessionHash, account, Date.now()).first();
+  `).bind(id, account, account, id, sessionHash, account, Date.now(), Date.now() - recentWindow).first();
 
   return deletion
     ? json({ ok: true })
@@ -207,10 +224,9 @@ export default {
       if (request.method !== "GET" && request.headers.get("Origin") !== origin) return deny();
       const token = sessionToken(request);
       if (!token || !(await activeSession(DB, await tokenHash(token)))) return deny();
+      if (request.method === "POST" && !(await takeAttempt(DB, "articles", limits.articles))) return tooMany();
       return adminArticle(request, DB, env.IMAGES, path);
     }
-
-
 
     if (path === "/api/session" && request.method === "GET") {
       const token = sessionToken(request);
@@ -236,25 +252,28 @@ export default {
       return json({ ok: true }, 200, { "Set-Cookie": `${cookie}=; ${cookieAttrs}; Max-Age=0` });
     }
 
+    const scope = authScopes.get(path);
+    if (!scope) return json({ error: "Route inconnue." }, 404);
+
     let body;
     try {
-      body = await request.json();
-    } catch {
-      return json({ error: "Requête invalide." }, 400);
+      body = await readJson(request);
+    } catch (error) {
+      return json({ error: "Requête invalide." }, requestErrorStatus(error));
     }
-    if (path.startsWith("/api/keys/")) {
+    if (scope === "keys") {
       const token = sessionToken(request);
       const hash = token && await tokenHash(token);
       const session = await activeSession(DB, hash);
       if (!session) return deny();
+      if (session.authenticated_at < Date.now() - recentWindow) return needRecentLogin();
+      if (!(await takeAttempt(DB, scope, limits[scope]))) return tooMany();
 
       if (path === "/api/keys/revoke") return revokeKey(DB, session.account, body?.id, hash);
-      if (path === "/api/keys/options" || path === "/api/keys/verify") {
-        return register(DB, path, { ...body, account: session.account }, hash);
-      }
-      return json({ error: "Route inconnue." }, 404);
+      return register(DB, path, { ...body, account: session.account }, hash);
     }
 
+    if (!(await takeAttempt(DB, scope, limits[scope]))) return tooMany();
     if (!accounts.has(body?.account)) return deny();
 
     switch (path) {

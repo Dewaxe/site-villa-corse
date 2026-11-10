@@ -75,6 +75,8 @@ Choisir stratégie session/passwords/anti-brute-force compatible runtime et mét
 
 **Récupération locale avec une clé de secours.** Dans Edge, un authentificateur interne virtuel et une clé USB virtuelle ont été enrôlés sur le même compte. Après retrait du premier et effacement du cookie navigateur, la deuxième clé a permis la connexion. La révocation a invalidé une assertion préparée avec la clé perdue et sa session encore active. La session créée avec la clé de secours reste valide. D1 refuse de supprimer la dernière clé. La migration a aussi été vérifiée en SQLite avec une clé et une session déjà présentes. L'enrôlement de secours et la révocation s'appuient sur la session de démonstration. Avant une preview, il faut qualifier la réauthentification récente, le débit et le parcours sur appareils physiques. En cas de perte des deux clés, la piste à instruire est un réenrôlement supervisé après vérification de l'identité, avec invalidation des sessions existantes.
 
+**Durcissement local.** Limites de corps vérifiées avant traitement, compteur de tentatives D1 atomique et connexion WebAuthn de moins de deux minutes pour l'ajout ou la révocation d'une clé. Edge confirme qu'une session ancienne reste lisible mais doit se reconnecter pour modifier ses clés. Le compteur global sert au banc local. Une preview avec écriture doit disposer d'un accès restreint et d'une limitation par acteur, et le CPU doit être mesuré. [Tests et détails](../prototypes/m0-pages/benchmarks/session/README.md#durcissement-du-parcours-décriture-local).
+
 ### ADR-005 — Cartographie aérienne **OUVERT**
 
 Étudier IGN WMTS/couverture Cargèse, attribution, fallback plan, bibliothèques de tracé et performance. Prototype tôt, implémentation finale M4.

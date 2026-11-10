@@ -73,7 +73,7 @@ export async function checkArticle(page, context, waitForStatus) {
   const first = await readPublic(v1, "Version un");
   assert.ok(first.bytes.length > 0 && first.bytes.length <= 250_000);
 
-  const sendInvalid = async (buffer, mimeType = "image/webp") => {
+  const sendInvalid = async (buffer, mimeType = "image/webp", status = 400) => {
     const rejected = await context.request.post(stateUrl + "/draft", {
       headers: { Origin: origin },
       multipart: {
@@ -81,9 +81,9 @@ export async function checkArticle(page, context, waitForStatus) {
         image: { name: "bad.webp", mimeType, buffer },
       },
     });
-    assert.equal(rejected.status(), 400);
+    assert.equal(rejected.status(), status);
   };
-  await sendInvalid(Buffer.alloc(260_001));
+  await sendInvalid(Buffer.alloc(260_001), "image/webp", 413);
   await sendInvalid(Buffer.from("not a WebP"));
   await sendInvalid(first.bytes, "image/png");
   const tooWide = Buffer.from(first.bytes);
@@ -95,6 +95,10 @@ export async function checkArticle(page, context, waitForStatus) {
   assert.equal((await state()).revisions.length, 1);
   assert.equal((await state()).revision_id, v1);
 
+  const oversizedPublish = await context.request.post(stateUrl + "/publish", {
+    headers: { Origin: origin }, data: { id: v1, version: 1, filler: "x".repeat(1024) },
+  });
+  assert.equal(oversizedPublish.status(), 413);
   const v2 = await draft("Version deux", "#cc4422");
   assert.equal((await fetch(imageUrl(v2))).status, 404);
   assert.equal((await readPublic(v1, "Version un")).html, first.html);
@@ -128,7 +132,8 @@ export async function checkArticle(page, context, waitForStatus) {
   const revisionDb = { prepare: () => ({ bind: () => ({ first: async () => ({ id: v1 }) }) }) };
   const delayedKv = { get: async () => null };
   const pending = new Request(stateUrl + "/publish", {
-    method: "POST", body: JSON.stringify({ id: v1, version: 3 }),
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id: v1, version: 3 }),
   });
   assert.equal((await adminArticle(pending, revisionDb, delayedKv, "/api/articles/publish")).status, 503);
   const imageRequest = new Request(imageUrl(v1));

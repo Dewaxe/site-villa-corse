@@ -68,3 +68,13 @@ Le dossier ignoré `backups/<nom>` contient un manifeste JSON des révisions D1 
 Pour vérifier les réponses HTTP, démarrer la source avec la configuration du démonstrateur et son ancien `--persist-to`, puis exécuter `node benchmarks/session/backup-http-check.js capture $backup`. Arrêter la source. Démarrer ensuite le démonstrateur avec `--persist-to ".wrangler/$cible"` et exécuter `node benchmarks/session/backup-http-check.js compare $backup`. Les deux serveurs utilisent le même port local, ce qui permet de comparer le HTML complet avec son URL canonique.
 
 L'exercice a reconstruit deux révisions et deux images publiées. Le HTML et les empreintes des images étaient identiques via HTTP. La cible contenait zéro clé de connexion, zéro défi et zéro session. Un fichier modifié d'un octet et un fichier absent ont été refusés avant création de la cible. Les SHA-256 détectent les altérations accidentelles. Le prototype ne signe ni ne chiffre la sauvegarde. Cet exercice ne couvre pas la reprise des comptes ni le retour à un ancien déploiement.
+
+## Durcissement du parcours d'écriture local
+
+Les requêtes JSON WebAuthn sont plafonnées à 16 Kio. Le JSON de publication est limité à 1 Kio et le formulaire d'upload à 260 ko. Le serveur arrête la lecture au-delà du plafond, y compris quand `Content-Length` est absent, et renvoie 413. La limite par image reste de 250 ko.
+
+D1 compte les tentatives par famille d'opérations dans une fenêtre de 60 secondes. Le test envoie une rafale concurrente et vérifie le 429 et `Retry-After`. Ce compteur est global au banc local. Avant une ouverture distante, il faut filtrer l'accès à l'essai et isoler les compteurs par acteur pour éviter qu'un tiers ne bloque les deux comptes.
+
+Une session dure 15 minutes, mais l'ajout ou la révocation d'une clé exige une authentification WebAuthn de moins de deux minutes. D1 vérifie à nouveau la fraîcheur lors de l'écriture. La CI vieillit une session fictive en base, vérifie que sa lecture reste possible mais que les mutations de clés renvoient 403, puis rejoue la connexion et poursuit le test. Une ancienne session migrée reçoit une date d'authentification nulle et doit se reconnecter pour modifier les clés.
+
+Undici est épinglé à 7.30.2 dans Miniflare. L'audit pnpm exécuté après l'installation verrouillée ne signale aucun avis connu. Le décodage complet du WebP côté serveur, la protection d'accès à l'essai distant et les mesures CPU restent à vérifier avant l'ouverture.

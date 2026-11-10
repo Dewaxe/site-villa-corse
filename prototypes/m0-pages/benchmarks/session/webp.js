@@ -1,3 +1,5 @@
+import { readBoundedBody } from "./request-limits.js";
+
 const maxImageBytes = 250_000;
 const maxDimension = 1_600;
 
@@ -31,22 +33,9 @@ export async function readDraftForm(request) {
   const contentType = request.headers.get("Content-Type") ?? "";
   if (!request.body || !contentType.startsWith("multipart/form-data;")) return null;
 
-  const reader = request.body.getReader();
-  const parts = [];
-  let size = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    size += value.byteLength;
-    if (size > limit) {
-      await reader.cancel();
-      return null;
-    }
-    parts.push(value);
-  }
-
+  const body = await readBoundedBody(request, limit);
   try {
-    return await new Response(new Blob(parts), { headers: { "Content-Type": contentType } }).formData();
+    return await new Response(body, { headers: { "Content-Type": contentType } }).formData();
   } catch {
     return null;
   }

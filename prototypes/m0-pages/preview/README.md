@@ -12,7 +12,7 @@ Wrangler Pages 4.150.0 reçoit `--d1 DB=…` et `--kv IMAGES=…` lors de l'essa
 
 - Se connecter au compte Cloudflare voulu et confirmer dans le tableau de bord le plan **Workers Free** et les conditions d'activation sans carte, abonnement payant ou essai. Pour la première preview, voir le contrôle du compte dans le journal de preuve. [Workers](https://www.cloudflare.com/products/workers/), [Pages Functions](https://developers.cloudflare.com/pages/functions/pricing/), [D1](https://developers.cloudflare.com/d1/platform/pricing/), [KV](https://developers.cloudflare.com/kv/platform/pricing/).
 - Préparer un projet Pages isolé, une base D1 et un namespace KV propres à la preview. Importer des révisions et médias fictifs uniquement. Contrôler le réglage **Fail closed** et l'en-tête `noindex` sur l'URL effective. Suivre le [plan M0](../../../docs/M0.md#vérifications-avant-et-pendant-la-preview).
-- Commencer par vérifier le rendu public, le routage et les métriques avec cet artefact. L'ouverture de l'écriture en preview nécessite un incrément séparé pour l'origine WebAuthn, la réauthentification, les limites de débit et de corps et la revue de l'outillage. Les avis sur Undici via Wrangler/Miniflare restent à traiter avant cette exposition.
+- Commencer par vérifier le rendu public, le routage et les métriques avec cet artefact. L'ouverture de l'écriture en preview nécessite un incrément séparé pour l'origine WebAuthn, la réauthentification, les limites de débit et de corps et la revue de l'outillage. Les avis précédents sur Undici via Miniflare ont été traités dans le lockfile du banc local.
 
 ## Déploiement de preuve du 10/11/2026
 

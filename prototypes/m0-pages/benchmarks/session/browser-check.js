@@ -1,5 +1,6 @@
 import { checkArticle } from "./article-check.js";
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { parseEnv } from "node:util";
 import { chromium } from "playwright-core";
@@ -86,6 +87,25 @@ try {
       const post = (path, data) => context.request.post(origin + path, { data, headers: { Origin: origin } });
       const { credentials: [lost] } = await cdp.send("WebAuthn.getCredentials", { authenticatorId: primary });
       const lostId = Buffer.from(lost.credentialId, "base64").toString("base64url");
+      const localState = process.env.M0_SESSION_STATE;
+      if (localState) {
+        assert.match(localState, /^ci-[0-9a-f]{32}-source$/);
+        execFileSync(process.execPath, [
+          "node_modules/wrangler/bin/wrangler.js", "d1", "execute", "DB", "--local",
+          "--persist-to", ".wrangler/" + localState, "--config", "benchmarks/session/wrangler.jsonc",
+          "--command", "UPDATE sessions SET authenticated_at = 0 WHERE account = 'demo-a'",
+        ], { stdio: "pipe", windowsHide: true });
+        assert.equal((await context.request.get(sessionUrl)).status(), 200);
+        assert.equal((await post("/api/keys/options", {})).status(), 403);
+        assert.equal((await post("/api/keys/revoke", { id: lostId })).status(), 403);
+
+        const [stepUp] = await Promise.all([
+          page.waitForResponse((response) => response.url().endsWith("/api/login/verify")),
+          page.click("#login"),
+        ]);
+        assert.equal(stepUp.status(), 200);
+        sessionCookie = await getSessionCookie();
+      }
       const lastKey = await post("/api/keys/revoke", { id: lostId });
       assert.equal(lastKey.status(), 409);
 
@@ -148,6 +168,20 @@ try {
     assert.equal((await context.request.get(sessionUrl)).status(), 401);
     const revoked = await fetch(sessionUrl, { headers: { Cookie: `${cookieName}=${sessionCookie.value}` } });
     assert.equal(revoked.status, 401);
+    if (account === "demo-b") {
+      const authPost = (data) => context.request.post(origin + "/api/register/options", {
+        headers: { Origin: origin }, data,
+      });
+      assert.equal((await authPost({ account, filler: "x".repeat(16_384) })).status(), 413);
+      const requests = await Promise.all(
+        Array.from({ length: 16 }, () => authPost({ account, invite: "invalid" })),
+      );
+      assert.ok(requests.some((response) => response.status() === 429));
+      assert.ok(requests.every((response) => [401, 429].includes(response.status())));
+      const limited = await authPost({ account, invite: "invalid" });
+      assert.equal(limited.status(), 429);
+      assert.equal(limited.headers()["retry-after"], "60");
+    }
     await context.close();
     results.push(account);
   }
