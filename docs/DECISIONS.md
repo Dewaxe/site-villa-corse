@@ -83,6 +83,8 @@ Choisir stratégie session/passwords/anti-brute-force compatible runtime et mét
 
 **Mesure séparée.** La vérification d’enrôlement atteint 10,274 ms sur un appel et la vérification de connexion 10,927 ms au p95 sur huit appels réussis. La marge CPU et les appareils physiques restent à vérifier. [Résultats](../prototypes/m0-pages/auth-preview/README.md#mesure-séparée-des-phases).
 
+**Sonde sans D1.** Sur 24 signatures synthétiques acceptées, Pages estime 2,066 ms en médiane et 5,986 ms au p95. Le parcours complet reste à caractériser. [Protocole et limites](../prototypes/m0-pages/auth-preview/README.md#sonde-de-vérification-sans-d1).
+
 ### ADR-005 — Cartographie aérienne **OUVERT**
 
 Étudier IGN WMTS/couverture Cargèse, attribution, fallback plan, bibliothèques de tracé et performance. Prototype tôt, implémentation finale M4.
