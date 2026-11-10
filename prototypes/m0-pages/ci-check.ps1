@@ -35,7 +35,7 @@ function Invoke-WithWrangler($port, $path, [string[]]$arguments, [scriptblock]$c
   try {
     $deadline = (Get-Date).AddSeconds(45)
     $ready = $false
-    $hostname = if ($port -eq 8788) { '127.0.0.1' } else { 'localhost' }
+    $hostname = if ($port -eq 8791) { 'localhost' } else { '127.0.0.1' }
     while (-not $ready -and (Get-Date) -lt $deadline -and -not $process.HasExited) {
       & curl.exe --ipv4 --noproxy '*' --silent --fail --max-time 2 --output NUL "http://${hostname}:$port$path"
       $ready = $LASTEXITCODE -eq 0
@@ -86,6 +86,15 @@ try {
   Invoke-SessionChecks $source { Invoke-Node benchmarks/session/backup-http-check.js capture $name }
   Invoke-Node benchmarks/session/backup.js restore $target $name
   Invoke-SessionChecks $target { Invoke-Node benchmarks/session/backup-http-check.js compare $name }
+
+  $pagesConfig = Get-Content -LiteralPath 'preview/wrangler.jsonc' -Raw | ConvertFrom-Json
+  $targetPath = Join-Path $project ".wrangler/$target"
+  Invoke-WithWrangler 8792 '/api/health' @(
+    'pages', 'dev', '--cwd', 'preview', '--ip', '127.0.0.1', '--port', '8792',
+    '--persist-to', ('"' + $targetPath + '"'),
+    '--d1', ('DB=' + $pagesConfig.d1_databases[0].database_id),
+    '--kv', ('IMAGES=' + $pagesConfig.kv_namespaces[0].id)
+  ) { Invoke-Node preview/check.js $name }
 
   Invoke-Node benchmarks/ign/check.js
 } finally {
