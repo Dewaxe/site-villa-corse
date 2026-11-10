@@ -1,0 +1,12 @@
+{
+  "name": "m0-pages",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler pages dev public --ip 127.0.0.1 --port 8788 --compatibility-date 2026-10-06",
+    "test": "node --test routing.test.js"
+  },
+  "devDependencies": {
+    "wrangler": "4.150.0"
+  }
+}
