@@ -1,3 +1,4 @@
+import { queuePublication, validatedImageKey } from "./publication-jobs.js";
 import { isDemoWebP, readDraftForm } from "./webp.js";
 import { readJson, requestErrorStatus } from "./request-limits.js";
 
@@ -43,7 +44,7 @@ async function articleImage(db, images, revision) {
 
   let image;
   try {
-    image = await images.get(mediaKey(revision), "arrayBuffer");
+    image = await images.get(await validatedImageKey(db, revision), "arrayBuffer");
   } catch {
     image = null;
   }
@@ -84,7 +85,7 @@ async function createDraft(request, db, images) {
   return json({ id }, 201);
 }
 
-async function publish(request, db, images) {
+async function publish(request, db, images, dispatch) {
   let data;
   try {
     data = await readJson(request, 1_024);
@@ -105,6 +106,17 @@ async function publish(request, db, images) {
     return json({ error: "Image indisponible, publication différée." }, 503);
   }
 
+  if (dispatch) {
+    const queued = await queuePublication(db, images, revision.id, data.version);
+    if (!queued.job) return json({ error: "Version périmée." }, queued.status);
+    try {
+      await dispatch(queued.job.id);
+    } catch {
+      return json({ error: "Traitement indisponible. La demande est conservée." }, 503);
+    }
+    return json({ pending: true, id: queued.job.id }, 202);
+  }
+
   const result = await db.prepare(`
     UPDATE article_state SET revision_id = ?, version = version + 1
     WHERE id = 1 AND version = ? RETURNING version
@@ -112,7 +124,7 @@ async function publish(request, db, images) {
   return result ? json(result) : json({ error: "Publication concurrente, recharge l’état." }, 409);
 }
 
-export async function adminArticle(request, db, images, path) {
+export async function adminArticle(request, db, images, path, dispatch) {
   if (request.method === "GET" && path === "/api/articles") {
     const [state, revisions] = await db.batch([
       db.prepare("SELECT version, revision_id FROM article_state WHERE id = 1"),
@@ -122,6 +134,6 @@ export async function adminArticle(request, db, images, path) {
   }
 
   if (request.method === "POST" && path === "/api/articles/draft") return createDraft(request, db, images);
-  if (request.method === "POST" && path === "/api/articles/publish") return publish(request, db, images);
+  if (request.method === "POST" && path === "/api/articles/publish") return publish(request, db, images, dispatch);
   return json({ error: "Route inconnue." }, 404);
 }

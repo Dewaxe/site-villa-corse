@@ -38,3 +38,12 @@ Le test constate une publication après une seule demande, un dérivé distinct 
 Sharp décode avec `failOn: warning` et une limite de 2,56 millions de pixels, puis réencode en WebP à qualité 55, sans demande de conservation des métadonnées. Le filtre structurel vérifie aussi le dérivé. Ce réglage est provisoire. [Options Sharp](https://sharp.pixelplumbing.com/api-constructor/)
 
 Le déclenchement du traitement est injecté dans le serveur local. Le workflow GitHub prouvé précédemment reste déclenché par un push. Le raccordement au bouton de l’admin réel, la délégation GitHub limitée et le stockage D1/KV par révision restent à réaliser.
+
+
+## Demandes persistantes avec le schéma D1
+
+`node benchmarks/image-publication/storage-check.js` exécute les handlers article réels sur SQLite avec les migrations D1 et un KV simulé. La migration `0005_publication_jobs.sql` conserve une demande unique par brouillon et version publiée. La méthode de publication accepte un déclencheur injecté pour ce banc. Le raccordement du Worker WebAuthn au déclencheur GitHub reste à implémenter.
+
+Le test confirme le maintien de la demande après un échec de déclenchement, le réencodage du fichier récupéré par identifiant de demande, le stockage du dérivé sous une clé immuable liée à son empreinte, puis le changement atomique du pointeur publié. Le résultat crée une nouvelle révision, ce qui préserve les octets du brouillon et les médias déjà publiés.
+
+La panne d’écriture KV, la mauvaise empreinte du source, le résultat rejoué et une version devenue périmée sont vérifiés. Le média du brouillon répond 404 avant publication. La sauvegarde exporte la clé effective du dérivé et la restauration le remet sous sa clé d’article standard. La suite Wrangler vérifie aussi les données du parcours existant.

@@ -84,6 +84,8 @@ Tester variantes Web, compression et limites, cache à cohérence éventuelle, p
 
 **Parcours automatique local.** Une demande HTTP admin déclenche le transfert privé et le réencodage Sharp 0.35.5. La transaction lie le source et le dérivé avant publication. Le flux tronqué et les mauvaises empreintes sont refusés. La délégation GitHub et le parcours D1/KV réel restent à raccorder. [Banc](../prototypes/m0-pages/benchmarks/image-publication/README.md#demande-et-réencodage-automatiques-en-local).
 
+**Demandes persistantes.** Le handler article peut enregistrer une demande D1 unique et appeler un déclencheur injecté. Le dérivé reçoit une clé KV immuable et une nouvelle révision. Les résultats périmés ou rejoués ne modifient pas une publication plus récente. La sauvegarde suit la clé effective du média. Le Worker d’admin reste à raccorder au déclencheur GitHub. [Test des handlers](../prototypes/m0-pages/benchmarks/image-publication/README.md#demandes-persistantes-avec-le-schéma-d1).
+
 ### ADR-004 — Authentification/notifications **OUVERT**
 
 Choisir stratégie session/passwords/anti-brute-force compatible runtime et méthode d'alerte au propriétaire sans risque de paiement, avec tests d'attaque et reprise.

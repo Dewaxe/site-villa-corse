@@ -35,7 +35,7 @@ function run(state, ...args) {
 function snapshot(state) {
   const query = [
     "SELECT version, revision_id FROM article_state WHERE id = 1",
-    "SELECT id, title, description, body, published FROM article_revisions ORDER BY id",
+    "SELECT r.id, r.title, r.description, r.body, r.published, CASE WHEN j.status = 'published' THEN 'validated/' || j.id || '/' || j.result_sha256 || '.webp' ELSE 'article/' || r.id || '.webp' END AS source_key FROM article_revisions r LEFT JOIN publication_jobs j ON j.id = r.id ORDER BY r.id",
   ].join("; ");
   const [pointer, revisions] = JSON.parse(run(state, "d1", "execute", "DB", "--json", "--command", query));
   return { pointer: pointer.results[0], revisions: revisions.results };
@@ -85,7 +85,7 @@ async function exportBackup(state, folder) {
   const revisions = [];
   for (const revision of data.revisions) {
     if (!idPattern.test(revision.id)) throw new Error("Identifiant de révision invalide.");
-    const bytes = run(state, "kv", "key", "get", mediaKey(revision.id), "--binding", "IMAGES");
+    const bytes = run(state, "kv", "key", "get", revision.source_key, "--binding", "IMAGES");
     await checkImage(bytes, revision.id);
     writeFileSync(imageFile(stage, revision.id), bytes);
     revisions.push({ ...revision, sha256: hash(bytes) });
