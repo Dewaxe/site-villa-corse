@@ -57,6 +57,10 @@ Tester variantes Web, compression et limites, cache à cohérence éventuelle, p
 
 Choisir stratégie session/passwords/anti-brute-force compatible runtime et méthode d'alerte au propriétaire sans risque de paiement, avec tests d'attaque et reprise.
 
+**Essai local du 10/11/2026.** Le [banc reproductible](../prototypes/m0-pages/benchmarks/kdf/README.md) mesure 345,2 ms de latence médiane pour PBKDF2-SHA256 à 600 000 itérations et 189,7 ms pour scrypt N=32768, r=8, p=3. Le témoin sans dérivation mesure 4,4 ms. Ces latences HTTP locales ne mesurent pas le CPU comptabilisé sur Workers Free. Elles suffisent à différer le login par mot de passe tant qu'une piste robuste n'a pas démontré une marge suffisante. Cloudflare ne prend pas en charge Argon2 dans `node:crypto`. Une implémentation WASM reste à évaluer si le mot de passe doit être conservé. [OWASP](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html), [Workers crypto](https://developers.cloudflare.com/workers/runtime-apis/nodejs/crypto/), [limite CPU](https://developers.cloudflare.com/workers/platform/limits/#cpu-time).
+
+**Suite proposée.** Comparer une clé d'accès WebAuthn, dont le serveur vérifie une signature. Vérifier l'enrôlement privé de deux comptes, le défi à usage unique, l'origine, le RP ID, les sessions révocables et la récupération en cas de perte. Garder l'ADR ouvert jusqu'à validation de l'expérience et du budget CPU. Cloudflare Zero Trust Free est écarté à ce stade, car son parcours d'inscription documenté exige des informations de paiement. Le choix du canal de notification reste ouvert. [WebAuthn](https://www.w3.org/TR/webauthn-2/), [inscription Cloudflare Zero Trust](https://developers.cloudflare.com/cloudflare-one/setup/).
+
 ### ADR-005 — Cartographie aérienne **OUVERT**
 
 Étudier IGN WMTS/couverture Cargèse, attribution, fallback plan, bibliothèques de tracé et performance. Prototype tôt, implémentation finale M4.
