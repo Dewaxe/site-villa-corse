@@ -1,9 +1,11 @@
+import { signatureStatus } from "../crypto.js";
 import { Buffer } from "node:buffer";
 import { timingSafeEqual } from "node:crypto";
 import { handleSessionRequest } from "../../benchmarks/session/worker.js";
 
 const routes = new Map([
   ["/probe", "GET"],
+  ["/probe/crypto", "POST"],
   ["/api/register/options", "POST"],
   ["/api/register/verify", "POST"],
   ["/api/login/options", "POST"],
@@ -34,6 +36,10 @@ export async function onRequest({ request, env }) {
     return new Response("<!doctype html><title>WebAuthn M0</title>", {
       headers: { ...headers, "Content-Type": "text/html; charset=utf-8" },
     });
+  }
+
+  if (url.pathname === "/probe/crypto") {
+    return new Response(null, { status: await signatureStatus(request, env.PROBE_ORIGIN), headers });
   }
 
   const response = await handleSessionRequest(request, env, env.PROBE_ORIGIN);

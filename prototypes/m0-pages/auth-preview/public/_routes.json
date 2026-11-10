@@ -2,6 +2,7 @@
   "version": 1,
   "include": [
     "/probe",
+    "/probe/crypto",
     "/api/register/options",
     "/api/register/verify",
     "/api/login/options",

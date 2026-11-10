@@ -33,3 +33,10 @@ Essai HTTPS du 10/11/2026 avec un second compte fictif. Edge confirme huit conne
 | Vérification de connexion | 21:11:38 à 21:11:40 | 8 | 6,207 ms | 10,927 ms |
 
 Pour les deux phases de connexion, le p99 est égal au p95 sur cet échantillon. Les appels HTTP ont réussi. Cloudflare documente que des quantiles peuvent dépasser la limite CPU sans erreur d’invocation. La marge reste à établir. [Métriques Pages](https://developers.cloudflare.com/pages/functions/metrics/#cpu-time-per-execution)
+
+
+## Sonde de vérification sans D1
+
+Sur la preview temporaire, exécuter `node auth-preview/crypto-check.js` avec `PROBE_ORIGIN` et `PROBE_TOKEN` en mémoire. La sonde vérifie une assertion ES256 fictive avec la même bibliothèque que la connexion. Le client fournit la clé publique et le défi. Le serveur vérifie le jeton avant toute lecture du corps, limite le JSON et refuse le défi invalide. Le scénario répète la même assertion 24 fois à des fins de mesure. La route ne consulte pas D1 et ne crée aucune session.
+
+La comparaison avec le parcours complet indique un ordre de grandeur. Les mesures viennent de deux exécutions distinctes et ne permettent pas de calculer le coût de D1 par soustraction.
