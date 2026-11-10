@@ -74,6 +74,8 @@ Tester variantes Web, compression et limites, cache à cohérence éventuelle, p
 
 **Ordre proposé.** Qualifier d’abord le binding Images Free via un Worker de service privé, car il préserve le parcours des deux administrateurs et délègue le traitement des pixels. Utiliser une transformation et un réencodage complets pour vérifier les octets produits. Une lecture de dimensions via `.info()` ne constitue pas cette preuve. Garder l’outil local comme solution de repli, puis envisager GitHub Actions uniquement si la validation locale est trop contraignante. Cette proposition conserve le DNS IONOS et reste ouverte jusqu’à l’essai.
 
+**Premier essai du binding.** Wrangler local produit un WebP lisible à 320 × 320. Le flux tronqué et les pannes simulées sont refusés. Le dérivé local de la grande image dépasse le poids autorisé. Le plan du compte, le comportement réel et le CPU hébergé restent à qualifier. [Banc et limites](../prototypes/m0-pages/benchmarks/images-binding/README.md).
+
 ### ADR-004 — Authentification/notifications **OUVERT**
 
 Choisir stratégie session/passwords/anti-brute-force compatible runtime et méthode d'alerte au propriétaire sans risque de paiement, avec tests d'attaque et reprise.

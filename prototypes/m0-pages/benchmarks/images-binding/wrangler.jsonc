@@ -1,0 +1,8 @@
+{
+  "name": "m0-images-service",
+  "main": "worker.js",
+  "compatibility_date": "2026-10-06",
+  "workers_dev": false,
+  "preview_urls": false,
+  "images": { "binding": "IMAGES" }
+}
