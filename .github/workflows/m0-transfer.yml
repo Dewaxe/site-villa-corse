@@ -1,0 +1,36 @@
+name: M0 private image transfer
+
+on:
+  push:
+    branches: ['m0/routage-pages']
+    paths:
+      - '.github/workflows/m0-transfer.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  transfer:
+    if: ${{ vars.M0_TRANSFER_ORIGIN != '' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '24.22.1'
+          package-manager-cache: false
+      - name: Compile locked decoder
+        working-directory: prototypes/m0-pages
+        run: |
+          rustup target add wasm32-unknown-unknown
+          CARGO_TARGET_DIR="$PWD/.wrangler/webp-decoder" cargo build --locked --release --target wasm32-unknown-unknown --manifest-path benchmarks/webp-decoder/Cargo.toml
+      - name: Fetch and validate fictional image
+        working-directory: prototypes/m0-pages
+        env:
+          TRANSFER_ORIGIN: ${{ vars.M0_TRANSFER_ORIGIN }}
+          TRANSFER_TOKEN: ${{ secrets.M0_TRANSFER_TOKEN }}
+        run: node benchmarks/image-publication/transfer-check.js
