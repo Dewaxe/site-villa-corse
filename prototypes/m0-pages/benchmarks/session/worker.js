@@ -10,8 +10,7 @@ import {
   verifyRegistrationResponse,
 } from "@simplewebauthn/server";
 
-const origin = "http://localhost:8791";
-const rpID = "localhost";
+const localOrigin = "http://localhost:8791";
 const cookie = "__Host-m0_session";
 const cookieAttrs = "Path=/; HttpOnly; Secure; SameSite=Strict";
 const sessionLifetime = 15 * 60;
@@ -76,7 +75,8 @@ function consumeChallenge(db, challenge, account, purpose, sessionHash = null) {
   `).bind(challenge, account, purpose, Date.now(), sessionHash).first();
 }
 
-async function register(db, path, body, sessionHash = null) {
+async function register(db, path, body, origin, sessionHash = null) {
+  const rpID = new URL(origin).hostname;
   const { account } = body;
   if (path.endsWith("/options")) {
     const { results: keys } = await db.prepare("SELECT id FROM credentials WHERE account = ?").bind(account).all();
@@ -135,7 +135,8 @@ async function register(db, path, body, sessionHash = null) {
   return insert.meta.changes === 1 ? json({ ok: true }) : deny();
 }
 
-async function login(db, path, body, previousToken) {
+async function login(db, path, body, origin, previousToken) {
+  const rpID = new URL(origin).hostname;
   const { account } = body;
   if (path === "/api/login/options") {
     const { results: keys } = await db.prepare("SELECT id FROM credentials WHERE account = ?").bind(account).all();
@@ -211,83 +212,87 @@ async function revokeKey(db, account, id, sessionHash) {
     : json({ error: "Cette clé ne peut pas être révoquée." }, 409);
 }
 
+export async function handleSessionRequest(request, { DB, ...env }, origin) {
+  const url = new URL(request.url);
+  if (url.origin !== origin) return deny();
+  const path = url.pathname;
+
+  const publicResponse = publicArticle(request, DB, env.IMAGES, url);
+  if (publicResponse) return publicResponse;
+
+  if (path === "/api/articles" || path.startsWith("/api/articles/")) {
+    if (request.method !== "GET" && request.headers.get("Origin") !== origin) return deny();
+    const token = sessionToken(request);
+    const session = token && await activeSession(DB, await tokenHash(token));
+    if (!session) return deny();
+    if (request.method === "POST" && !(await takeAttempt(DB, "articles", session.account, limits.articles))) {
+      return tooMany();
+    }
+    return adminArticle(request, DB, env.IMAGES, path);
+  }
+
+  if (path === "/api/session" && request.method === "GET") {
+    const token = sessionToken(request);
+    if (!token) return deny();
+    const session = await activeSession(DB, await tokenHash(token));
+    return session ? json({ account: session.account, role: "demo-admin" }) : deny();
+  }
+
+  if (path === "/api/keys" && request.method === "GET") {
+    const token = sessionToken(request);
+    const session = token && await activeSession(DB, await tokenHash(token));
+    if (!session) return deny();
+    const { results } = await DB.prepare("SELECT id FROM credentials WHERE account = ?")
+      .bind(session.account).all();
+    return json(results.map(({ id }) => id));
+  }
+
+  if (request.method !== "POST" || request.headers.get("Origin") !== origin) return deny();
+
+  if (path === "/api/logout") {
+    const token = sessionToken(request);
+    if (token) await DB.prepare("DELETE FROM sessions WHERE token_hash = ?").bind(await tokenHash(token)).run();
+    return json({ ok: true }, 200, { "Set-Cookie": `${cookie}=; ${cookieAttrs}; Max-Age=0` });
+  }
+
+  const scope = authScopes.get(path);
+  if (!scope) return json({ error: "Route inconnue." }, 404);
+
+  let body;
+  try {
+    body = await readJson(request);
+  } catch (error) {
+    return json({ error: "Requête invalide." }, requestErrorStatus(error));
+  }
+  if (scope === "keys") {
+    const token = sessionToken(request);
+    const hash = token && await tokenHash(token);
+    const session = await activeSession(DB, hash);
+    if (!session) return deny();
+    if (session.authenticated_at < Date.now() - recentWindow) return needRecentLogin();
+    if (!(await takeAttempt(DB, scope, session.account, limits[scope]))) return tooMany();
+
+    if (path === "/api/keys/revoke") return revokeKey(DB, session.account, body?.id, hash);
+    return register(DB, path, { ...body, account: session.account }, origin, hash);
+  }
+
+  if (!accounts.has(body?.account)) return deny();
+  if (!(await takeAttempt(DB, scope, body.account, limits[scope]))) return tooMany();
+
+  switch (path) {
+    case "/api/register/options":
+    case "/api/register/verify":
+      return canEnroll(env, body.account, body.invite) ? register(DB, path, body, origin) : deny();
+    case "/api/login/options":
+    case "/api/login/verify":
+      return login(DB, path, body, origin, sessionToken(request));
+    default:
+      return json({ error: "Route inconnue." }, 404);
+  }
+}
+
 export default {
-  async fetch(request, { DB, ...env }) {
-    const url = new URL(request.url);
-    if (url.origin !== origin) return deny();
-    const path = url.pathname;
-
-    const publicResponse = publicArticle(request, DB, env.IMAGES, url);
-    if (publicResponse) return publicResponse;
-
-    if (path === "/api/articles" || path.startsWith("/api/articles/")) {
-      if (request.method !== "GET" && request.headers.get("Origin") !== origin) return deny();
-      const token = sessionToken(request);
-      const session = token && await activeSession(DB, await tokenHash(token));
-      if (!session) return deny();
-      if (request.method === "POST" && !(await takeAttempt(DB, "articles", session.account, limits.articles))) {
-        return tooMany();
-      }
-      return adminArticle(request, DB, env.IMAGES, path);
-    }
-
-    if (path === "/api/session" && request.method === "GET") {
-      const token = sessionToken(request);
-      if (!token) return deny();
-      const session = await activeSession(DB, await tokenHash(token));
-      return session ? json({ account: session.account, role: "demo-admin" }) : deny();
-    }
-
-    if (path === "/api/keys" && request.method === "GET") {
-      const token = sessionToken(request);
-      const session = token && await activeSession(DB, await tokenHash(token));
-      if (!session) return deny();
-      const { results } = await DB.prepare("SELECT id FROM credentials WHERE account = ?")
-        .bind(session.account).all();
-      return json(results.map(({ id }) => id));
-    }
-
-    if (request.method !== "POST" || request.headers.get("Origin") !== origin) return deny();
-
-    if (path === "/api/logout") {
-      const token = sessionToken(request);
-      if (token) await DB.prepare("DELETE FROM sessions WHERE token_hash = ?").bind(await tokenHash(token)).run();
-      return json({ ok: true }, 200, { "Set-Cookie": `${cookie}=; ${cookieAttrs}; Max-Age=0` });
-    }
-
-    const scope = authScopes.get(path);
-    if (!scope) return json({ error: "Route inconnue." }, 404);
-
-    let body;
-    try {
-      body = await readJson(request);
-    } catch (error) {
-      return json({ error: "Requête invalide." }, requestErrorStatus(error));
-    }
-    if (scope === "keys") {
-      const token = sessionToken(request);
-      const hash = token && await tokenHash(token);
-      const session = await activeSession(DB, hash);
-      if (!session) return deny();
-      if (session.authenticated_at < Date.now() - recentWindow) return needRecentLogin();
-      if (!(await takeAttempt(DB, scope, session.account, limits[scope]))) return tooMany();
-
-      if (path === "/api/keys/revoke") return revokeKey(DB, session.account, body?.id, hash);
-      return register(DB, path, { ...body, account: session.account }, hash);
-    }
-
-    if (!accounts.has(body?.account)) return deny();
-    if (!(await takeAttempt(DB, scope, body.account, limits[scope]))) return tooMany();
-
-    switch (path) {
-      case "/api/register/options":
-      case "/api/register/verify":
-        return canEnroll(env, body.account, body.invite) ? register(DB, path, body) : deny();
-      case "/api/login/options":
-      case "/api/login/verify":
-        return login(DB, path, body, sessionToken(request));
-      default:
-        return json({ error: "Route inconnue." }, 404);
-    }
+  fetch(request, env) {
+    return handleSessionRequest(request, env, localOrigin);
   },
 };

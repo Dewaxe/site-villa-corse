@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "include": [
+    "/probe",
+    "/api/register/options",
+    "/api/register/verify",
+    "/api/login/options",
+    "/api/login/verify",
+    "/api/session",
+    "/api/logout"
+  ],
+  "exclude": []
+}

@@ -13,6 +13,9 @@ $inviteFile = Join-Path $private 'invites.env'
 $previousInviteFile = $env:M0_INVITES_FILE
 $previousSessionState = $env:M0_SESSION_STATE
 $previousMetrics = $env:WRANGLER_SEND_METRICS
+$previousProbeOrigin = $env:PROBE_ORIGIN
+$previousProbeToken = $env:PROBE_TOKEN
+$previousProbeInvite = $env:INVITE_A
 
 function Invoke-Node {
   & $node @args
@@ -36,7 +39,7 @@ function Invoke-WithWrangler($port, $path, [string[]]$arguments, [scriptblock]$c
   try {
     $deadline = (Get-Date).AddSeconds(45)
     $ready = $false
-    $hostname = if ($port -eq 8791) { 'localhost' } else { '127.0.0.1' }
+    $hostname = if ($port -in 8791, 8793) { 'localhost' } else { '127.0.0.1' }
     while (-not $ready -and (Get-Date) -lt $deadline -and -not $process.HasExited) {
       & curl.exe --ipv4 --noproxy '*' --silent --fail --max-time 2 --output NUL "http://${hostname}:$port$path"
       $ready = $LASTEXITCODE -eq 0
@@ -99,11 +102,25 @@ try {
     '--kv', ('IMAGES=' + $pagesConfig.kv_namespaces[0].id)
   ) { Invoke-Node preview/check.js $name }
 
+  $env:PROBE_ORIGIN = 'http://localhost:8793'
+  $env:PROBE_TOKEN = $inviteB
+  $env:INVITE_A = $inviteA
+  $probeUntil = [DateTimeOffset]::UtcNow.AddMinutes(5).ToUnixTimeMilliseconds()
+  Invoke-WithWrangler 8793 '/404.html' @(
+    'pages', 'dev', 'public', '--cwd', 'auth-preview', '--ip', '127.0.0.1', '--port', '8793',
+    '--compatibility-date', '2026-10-06', '--compatibility-flag', 'nodejs_compat',
+    '--persist-to', ('"' + $targetPath + '"'), '--d1', ('DB=' + $pagesConfig.d1_databases[0].database_id),
+    '--binding', "PROBE_ORIGIN=$env:PROBE_ORIGIN", "PROBE_TOKEN=$inviteB", "INVITE_A=$inviteA", "PROBE_UNTIL=$probeUntil"
+  ) { Invoke-Node auth-preview/check.js }
+
   Invoke-Node benchmarks/ign/check.js
 } finally {
   $env:M0_INVITES_FILE = $previousInviteFile
   $env:M0_SESSION_STATE = $previousSessionState
   $env:WRANGLER_SEND_METRICS = $previousMetrics
+  $env:PROBE_ORIGIN = $previousProbeOrigin
+  $env:PROBE_TOKEN = $previousProbeToken
+  $env:INVITE_A = $previousProbeInvite
   foreach ($relative in ".wrangler/$name", ".wrangler/$source", ".wrangler/$target", "backups/$name") {
     $expected = [System.IO.Path]::GetFullPath((Join-Path $project $relative))
     if (Test-Path -LiteralPath $expected) {
