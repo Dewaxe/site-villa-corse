@@ -19,3 +19,17 @@ Le projet de test avait deux déploiements de preview et zéro déploiement de p
 Dans Edge, une clé virtuelle a été enrôlée et les huit vérifications de signature ont réussi (HTTP 200). Le rejeu et la lecture de session après déconnexion ont renvoyé 401. Les appels anonymes ont reçu 404, l’upload était inaccessible, et le jeton valide a été refusé sur l’URL immuable alternative. Après les deux minutes, le même jeton sur l’alias autorisé a reçu 404.
 
 De 21:06:07 à 21:06:09 UTC (borne haute exclue), GraphQL a estimé huit invocations réussies, le même nombre qu’Edge, avec un intervalle d’échantillonnage moyen de 1,33. CPU de vérification estimé : médiane 4,863 ms, p95 et p99 9,351 ms. Le dataset a renvoyé `scriptName: __unknown__`, donc le rapprochement repose sur le créneau isolé et le nombre d’appels. La fenêtre précédente, qui mêle notamment l’enrôlement et les demandes de défi, affiche un p99 de 11,282 ms. Elle ne permet pas d’attribuer le pic à une route. Ces mesures laissent la marge réelle à confirmer.
+
+
+## Mesure séparée des phases
+
+Essai HTTPS du 10/11/2026 avec un second compte fictif. Edge confirme huit connexions réussies, le refus du rejeu et la révocation après déconnexion. GraphQL renvoie les volumes attendus et un intervalle d’échantillonnage de 1. Le script reste identifié comme `__unknown__`. Le rapprochement repose sur le temps et les volumes. La requête utilise `dimensions { datetimeMinute scriptName status }` avec borne haute exclue.
+
+| Phase | Créneau UTC | Appels | CPU médian | CPU p95 |
+| --- | --- | ---: | ---: | ---: |
+| Demande d’enrôlement | 21:11:30 à 21:11:32 | 1 | 8,412 ms | — |
+| Vérification d’enrôlement | 21:11:33 à 21:11:34 | 1 | 10,274 ms | — |
+| Demande de défi de connexion | 21:11:35 à 21:11:37 | 8 | 3,805 ms | 6,526 ms |
+| Vérification de connexion | 21:11:38 à 21:11:40 | 8 | 6,207 ms | 10,927 ms |
+
+Pour les deux phases de connexion, le p99 est égal au p95 sur cet échantillon. Les appels HTTP ont réussi. Cloudflare documente que des quantiles peuvent dépasser la limite CPU sans erreur d’invocation. La marge reste à établir. [Métriques Pages](https://developers.cloudflare.com/pages/functions/metrics/#cpu-time-per-execution)

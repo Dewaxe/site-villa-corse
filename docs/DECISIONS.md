@@ -81,6 +81,8 @@ Choisir stratégie session/passwords/anti-brute-force compatible runtime et mét
 
 **Essai Pages HTTPS du 10/11/2026.** Une clé Edge virtuelle et huit vérifications réussies avec D1 dédié, rejeu refusé et déconnexion confirmée. Sur le créneau de vérification isolé, CPU estimé par Pages à 4,863 ms en médiane et 9,351 ms au p95/p99. Le jeu de données ne nomme pas le script et l’échantillon est petit. Un créneau mixte d’enrôlement et de demandes de défi atteint 11,282 ms au p99. Mesurer chaque étape séparément avant de conclure sur la marge des 10 ms. [Protocole et preuve](../prototypes/m0-pages/auth-preview/README.md#preuve-https-du-10-novembre-2026).
 
+**Mesure séparée.** La vérification d’enrôlement atteint 10,274 ms sur un appel et la vérification de connexion 10,927 ms au p95 sur huit appels réussis. La marge CPU et les appareils physiques restent à vérifier. [Résultats](../prototypes/m0-pages/auth-preview/README.md#mesure-séparée-des-phases).
+
 ### ADR-005 — Cartographie aérienne **OUVERT**
 
 Étudier IGN WMTS/couverture Cargèse, attribution, fallback plan, bibliothèques de tracé et performance. Prototype tôt, implémentation finale M4.
