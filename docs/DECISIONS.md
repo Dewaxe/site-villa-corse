@@ -78,6 +78,8 @@ Tester variantes Web, compression et limites, cache à cohérence éventuelle, p
 
 **Arbitrage sur le compte de test.** Le tableau de bord demande une carte pour activer Cloudflare Images. L’option est écartée pour M0. William souhaite conserver le même nombre de manipulations pour les deux administrateurs. Prototyper en priorité le traitement automatique via GitHub Actions standard sur le dépôt public, en gardant les octets hors du dépôt et des artefacts. L’outil local manuel reste une variante qui modifierait le parcours admin.
 
+**Publication différée locale.** Le banc SQLite/Wasm lie un résultat à la révision et à l’empreinte du fichier. Un flux tronqué, une panne ou une empreinte différente laissent la publication intacte. Le changement de version est atomique et le résultat rejoué est sans effet supplémentaire. Le transfert authentifié, le réencodage et GitHub Actions restent à vérifier. [Banc](../prototypes/m0-pages/benchmarks/image-publication/README.md).
+
 ### ADR-004 — Authentification/notifications **OUVERT**
 
 Choisir stratégie session/passwords/anti-brute-force compatible runtime et méthode d'alerte au propriétaire sans risque de paiement, avec tests d'attaque et reprise.
