@@ -82,6 +82,8 @@ Tester variantes Web, compression et limites, cache à cohérence éventuelle, p
 
 **Transfert GitHub réel.** Un runner standard a récupéré et décodé une image fictive en mémoire, puis confirmé le résultat deux fois à Pages. D1 confirme le témoin et aucun artefact n’a été créé. Le secret GitHub temporaire a été supprimé. Le déclenchement par l’admin, le transit par révision et le réencodage restent ouverts. [Preuve](../prototypes/m0-pages/benchmarks/image-publication/README.md#transfert-privé-vérifié-sur-github-actions).
 
+**Parcours automatique local.** Une demande HTTP admin déclenche le transfert privé et le réencodage Sharp 0.35.5. La transaction lie le source et le dérivé avant publication. Le flux tronqué et les mauvaises empreintes sont refusés. La délégation GitHub et le parcours D1/KV réel restent à raccorder. [Banc](../prototypes/m0-pages/benchmarks/image-publication/README.md#demande-et-réencodage-automatiques-en-local).
+
 ### ADR-004 — Authentification/notifications **OUVERT**
 
 Choisir stratégie session/passwords/anti-brute-force compatible runtime et méthode d'alerte au propriétaire sans risque de paiement, avec tests d'attaque et reprise.

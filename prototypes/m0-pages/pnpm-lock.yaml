@@ -17,6 +17,9 @@ importers:
       playwright-core:
         specifier: 1.65.0
         version: 1.65.0
+      sharp:
+        specifier: 0.35.5
+        version: 0.35.5
       wrangler:
         specifier: 4.150.0
         version: 4.150.0

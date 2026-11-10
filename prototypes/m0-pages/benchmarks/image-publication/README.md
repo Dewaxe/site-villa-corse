@@ -27,3 +27,14 @@ Aucun artefact GitHub n’a été créé. Les journaux contiennent le résultat 
 Pour reproduire, générer le fichier du [banc WebP](../webp-decoder/README.md), compiler le Wasm, préparer une preview à durée limitée avec la base D1 de test et `TRANSFER_DIGEST` égal au SHA-256 de l’image. La table `m0_transfer` contient une ligne `(id=1, completed=0)`. Définir le secret GitHub `M0_TRANSFER_TOKEN` et la variable `M0_TRANSFER_ORIGIN` avant de déclencher le workflow. Les entrées restent en mémoire dans le runner. Retirer les deux paramètres après l’essai.
 
 La validation peut donc être exécutée sur GitHub avec retour privé vers Pages. Restent à faire le déclenchement depuis le bouton admin, le stockage privé transitoire par révision, le réencodage et la publication D1/KV complète. Une autorisation GitHub adaptée au déclenchement devra être configurée explicitement avant ce raccordement.
+
+
+## Demande et réencodage automatiques en local
+
+`node benchmarks/image-publication/pipeline-check.js` lance un serveur HTTP sur une adresse locale avec des secrets aléatoires distincts pour le rôle admin et le traitement. Une seule demande POST déclenche le transfert, le réencodage Sharp 0.35.5 et le retour du dérivé. SQLite associe les empreintes du source et du résultat avant de changer le pointeur publié dans la même transaction.
+
+Le test constate une publication après une seule demande, un dérivé distinct et borné à 250 000 octets, le refus du téléchargement anonyme et d’un résultat dont les empreintes sont fausses. Le fichier VP8 tronqué provoque un échec du traitement et laisse la révision précédente publiée. Le banc précédent continue de vérifier le rejeu et les résultats périmés. `pnpm audit` ne signale aucun avis connu après l’ajout verrouillé de Sharp.
+
+Sharp décode avec `failOn: warning` et une limite de 2,56 millions de pixels, puis réencode en WebP à qualité 55, sans demande de conservation des métadonnées. Le filtre structurel vérifie aussi le dérivé. Ce réglage est provisoire. [Options Sharp](https://sharp.pixelplumbing.com/api-constructor/)
+
+Le déclenchement du traitement est injecté dans le serveur local. Le workflow GitHub prouvé précédemment reste déclenché par un push. Le raccordement au bouton de l’admin réel, la délégation GitHub limitée et le stockage D1/KV par révision restent à réaliser.

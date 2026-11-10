@@ -12,6 +12,7 @@ export function createPublication() {
       id TEXT PRIMARY KEY,
       version INTEGER NOT NULL,
       bytes BLOB NOT NULL,
+      output BLOB,
       status TEXT NOT NULL DEFAULT 'pending'
     );
   `);
@@ -22,10 +23,12 @@ export function createPublication() {
       .run(id, current().version, bytes);
   };
   const read = (id) => db.prepare("SELECT * FROM pending WHERE id = ?").get(id);
-  const complete = ({ id, sha256 }) => {
+  const complete = ({ id, sha256, sourceSha256, output }) => {
     const job = read(id);
     if (!job) return "unknown";
-    if (digest(job.bytes) !== sha256) return "mismatch";
+    const resultBytes = output ?? job.bytes;
+    if (output && digest(job.bytes) !== sourceSha256) return "mismatch";
+    if (digest(resultBytes) !== sha256) return "mismatch";
     if (job.status !== "pending") return job.status;
 
     db.exec("BEGIN");
@@ -33,7 +36,7 @@ export function createPublication() {
       const update = db.prepare("UPDATE published SET version = version + 1, revision = ? WHERE version = ?")
         .run(id, job.version);
       const status = update.changes === 1 ? "published" : "stale";
-      db.prepare("UPDATE pending SET status = ? WHERE id = ?").run(status, id);
+      db.prepare("UPDATE pending SET status = ?, output = ? WHERE id = ?").run(status, resultBytes, id);
       db.exec("COMMIT");
       return status;
     } catch (error) {
