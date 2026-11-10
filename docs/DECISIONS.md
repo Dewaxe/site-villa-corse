@@ -79,6 +79,8 @@ Choisir stratégie session/passwords/anti-brute-force compatible runtime et mét
 
 **Durcissement local.** Limites de corps vérifiées avant traitement, compteur de tentatives D1 atomique et connexion WebAuthn de moins de deux minutes pour l'ajout ou la révocation d'une clé. Edge confirme qu'une session ancienne reste lisible mais doit se reconnecter pour modifier ses clés. Le compteur sépare désormais opération et compte. Le test en rafale confirme le 429 sur le compte B et le refus d'invitation 401 sur le compte A. Une preview avec écriture doit filtrer les requêtes avant le traitement de connexion pour éviter qu'un tiers puisse saturer le compteur d'un compte connu. Le CPU de connexion peut être mesuré indépendamment de l'upload. [Tests et détails](../prototypes/m0-pages/benchmarks/session/README.md#durcissement-du-parcours-décriture-local).
 
+**Essai Pages HTTPS du 10/11/2026.** Une clé Edge virtuelle et huit vérifications réussies avec D1 dédié, rejeu refusé et déconnexion confirmée. Sur le créneau de vérification isolé, CPU estimé par Pages à 4,863 ms en médiane et 9,351 ms au p95/p99. Le jeu de données ne nomme pas le script et l’échantillon est petit. Un créneau mixte d’enrôlement et de demandes de défi atteint 11,282 ms au p99. Mesurer chaque étape séparément avant de conclure sur la marge des 10 ms. [Protocole et preuve](../prototypes/m0-pages/auth-preview/README.md#preuve-https-du-10-novembre-2026).
+
 ### ADR-005 — Cartographie aérienne **OUVERT**
 
 Étudier IGN WMTS/couverture Cargèse, attribution, fallback plan, bibliothèques de tracé et performance. Prototype tôt, implémentation finale M4.
