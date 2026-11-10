@@ -63,6 +63,17 @@ Tester variantes Web, compression et limites, cache à cohérence éventuelle, p
 
 **Sauvegarde locale testée.** Un export hors ligne a réuni deux révisions D1, le pointeur publié et deux binaires KV avec SHA-256. L'import dans un état local neuf restitue les mêmes réponses HTML et WebP, sans réintroduire les clés d'accès, défis ou sessions. Un média absent ou modifié est refusé avant création de la cible. Voir les [commandes de restauration](../prototypes/m0-pages/benchmarks/session/README.md). La copie privée en environnement hébergé et le retour de déploiement restent à vérifier.
 
+#### Validation des images après la mesure CPU
+
+| Option | Effet pour les administrateurs | Condition ou compromis |
+| --- | --- | --- |
+| Pages → Worker privé → binding Cloudflare Images | Conserve le dépôt de photo dans l’admin pour les deux comptes. La Function transmet les octets privés, puis conserve uniquement la sortie réencodée. | Images Free documente 5 000 transformations uniques par mois sans dépassement facturé. Le binding Images est documenté pour Workers, et Pages peut appeler ce Worker via un Service Binding. Vérifier l’accès sans carte sur le compte, le CPU restant et le traitement des fichiers tronqués. [Tarifs](https://developers.cloudflare.com/images/pricing/) · [Binding Images](https://developers.cloudflare.com/images/optimization/binding/) · [Bindings Pages](https://developers.cloudflare.com/pages/functions/bindings/). |
+| Validation hors requête dans un outil local | Les deux comptes gardent le droit de publier. Le geste de publication exige un outil local ou une intervention supplémentaire pour chaque image. | Le validateur décode et réencode. L’approbation doit être liée à l’empreinte du dérivé et à sa révision. Le serveur vérifie cette preuve avant de publier. Le terminal doit disposer de l’outil et d’un accès d’administration autorisé. |
+| Validation hors requête par GitHub Actions | Peut conserver une publication depuis l’admin, avec état « en attente » et délai d’exécution. | Les runners standard sont gratuits pour un dépôt public. Il faut un déclenchement authentifié, une zone de transit privée, des identités techniques et une reprise idempotente. Les originaux ne doivent jamais apparaître dans les commits, journaux ou artefacts publics. [Facturation Actions](https://docs.github.com/en/actions/concepts/billing-and-usage). |
+| Autre décodeur Wasm dans Pages | Même parcours d’administration, avec moins de services. | Un décodeur maintenu doit réussir les cas limites dans le budget. La petite image a déjà atteint 25,371 ms au p95 avec le candidat Rust actuel. Réduire seulement la taille est un compromis visuel dont le gain CPU reste à mesurer. |
+
+**Ordre proposé.** Qualifier d’abord le binding Images Free via un Worker de service privé, car il préserve le parcours des deux administrateurs et délègue le traitement des pixels. Utiliser une transformation et un réencodage complets pour vérifier les octets produits. Une lecture de dimensions via `.info()` ne constitue pas cette preuve. Garder l’outil local comme solution de repli, puis envisager GitHub Actions uniquement si la validation locale est trop contraignante. Cette proposition conserve le DNS IONOS et reste ouverte jusqu’à l’essai.
+
 ### ADR-004 — Authentification/notifications **OUVERT**
 
 Choisir stratégie session/passwords/anti-brute-force compatible runtime et méthode d'alerte au propriétaire sans risque de paiement, avec tests d'attaque et reprise.
