@@ -59,6 +59,8 @@ Tester variantes Web, compression et limites, cache à cohérence éventuelle, p
 
 **Décodage à vérifier.** Un test conserve les en-têtes et la première partition VP8, puis retire les données de pixels. Le filtre structurel accepte ce WebP et Edge refuse de le décoder. Écarter le paquet jSquash WebP examiné, dont la [mise à niveau de libwebp](https://github.com/jamsinclair/jSquash/pull/114) reste ouverte. Tester un décodeur maintenu, par exemple [image-webp compilé en Wasm](https://github.com/image-rs/image-webp), avec les images valides aux bornes et les fichiers corrompus avant toute écriture en stockage. La mesure du CPU d'upload attend ce contrôle.
 
+**Décodage local.** `image-webp` 0.2.4 compilé en Wasm décode deux fichiers VP8 jusqu’à 1 600 × 1 600 et refuse leurs versions tronquées dans Wrangler. La mesure CPU hébergée et la revue des dépendances restent ouvertes. [Banc WebP](../prototypes/m0-pages/benchmarks/webp-decoder/README.md).
+
 **Sauvegarde locale testée.** Un export hors ligne a réuni deux révisions D1, le pointeur publié et deux binaires KV avec SHA-256. L'import dans un état local neuf restitue les mêmes réponses HTML et WebP, sans réintroduire les clés d'accès, défis ou sessions. Un média absent ou modifié est refusé avant création de la cible. Voir les [commandes de restauration](../prototypes/m0-pages/benchmarks/session/README.md). La copie privée en environnement hébergé et le retour de déploiement restent à vérifier.
 
 ### ADR-004 — Authentification/notifications **OUVERT**
