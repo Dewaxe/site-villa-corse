@@ -6,7 +6,8 @@ import { chromium } from "playwright-core";
 
 const origin = "http://localhost:8791";
 const cookieName = "__Host-m0_session";
-const invites = parseEnv(await readFile(new URL("./.dev.vars", import.meta.url), "utf8"));
+const inviteFile = process.env.M0_INVITES_FILE ?? new URL("./.dev.vars", import.meta.url);
+const invites = parseEnv(await readFile(inviteFile, "utf8"));
 const browser = await chromium.launch({ channel: "msedge" });
 const results = [];
 

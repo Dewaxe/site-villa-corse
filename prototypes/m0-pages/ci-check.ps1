@@ -1,0 +1,112 @@
+$ErrorActionPreference = 'Stop'
+$project = $PSScriptRoot
+$node = (Get-Command node -CommandType Application | Select-Object -First 1).Source
+$wrangler = 'node_modules/wrangler/bin/wrangler.js'
+$config = 'benchmarks/session/wrangler.jsonc'
+$name = 'ci-' + [guid]::NewGuid().ToString('N')
+$source = "$name-source"
+$target = "$name-restored"
+$private = Join-Path $project ".wrangler/$name"
+$stdout = Join-Path $private 'wrangler.log'
+$stderr = Join-Path $private 'wrangler-error.log'
+$inviteFile = Join-Path $private 'invites.env'
+$previousInviteFile = $env:M0_INVITES_FILE
+$previousMetrics = $env:WRANGLER_SEND_METRICS
+
+function Invoke-Node {
+  & $node @args
+  if ($LASTEXITCODE -ne 0) { throw "Node failed with exit code $LASTEXITCODE." }
+}
+
+function New-Invite {
+  $bytes = [byte[]]::new(32)
+  [System.Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
+  [Convert]::ToBase64String($bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_')
+}
+
+function Invoke-WithWrangler($port, $path, [string[]]$arguments, [scriptblock]$check) {
+  if (Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue) {
+    throw "Port $port already in use. Stop the existing local server before running the suite."
+  }
+
+  $process = Start-Process -FilePath $node -ArgumentList (@($wrangler) + $arguments) `
+    -WorkingDirectory $project -WindowStyle Hidden -PassThru `
+    -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+  try {
+    $deadline = (Get-Date).AddSeconds(45)
+    $ready = $false
+    $hostname = if ($port -eq 8788) { '127.0.0.1' } else { 'localhost' }
+    while (-not $ready -and (Get-Date) -lt $deadline -and -not $process.HasExited) {
+      & curl.exe --ipv4 --noproxy '*' --silent --fail --max-time 2 --output NUL "http://${hostname}:$port$path"
+      $ready = $LASTEXITCODE -eq 0
+      if (-not $ready) { Start-Sleep -Milliseconds 300 }
+    }
+    if (-not $ready) { throw "Wrangler did not become ready on port $port." }
+    & $check
+  } catch {
+    Get-Content -LiteralPath $stdout, $stderr -Tail 15 | ForEach-Object {
+      $_.Replace($inviteA, '[invitation hidden]').Replace($inviteB, '[invitation hidden]')
+    }
+    throw
+  } finally {
+    if (-not $process.HasExited) {
+      & taskkill.exe /PID $process.Id /T /F | Out-Null
+      $process.WaitForExit()
+    }
+  }
+}
+
+function Invoke-SessionChecks($state, [scriptblock]$check) {
+  Invoke-WithWrangler 8791 '/' @(
+    'dev', '--local', '--config', $config,
+    '--persist-to', ".wrangler/$state",
+    '--env-file', ('"' + $inviteFile + '"')
+  ) $check
+}
+
+Push-Location $project
+try {
+  [void][System.IO.Directory]::CreateDirectory($private)
+  $inviteA = New-Invite
+  $inviteB = New-Invite
+  [System.IO.File]::WriteAllText($inviteFile, "INVITE_A=$inviteA`nINVITE_B=$inviteB`n")
+  $env:M0_INVITES_FILE = $inviteFile
+  $env:WRANGLER_SEND_METRICS = 'false'
+
+  foreach ($file in (git ls-files -- '*.js')) { Invoke-Node --check $file }
+  Invoke-WithWrangler 8788 '/api/health' @(
+    'pages', 'dev', 'public', '--ip', '127.0.0.1', '--port', '8788',
+    '--compatibility-date', '2026-10-06', '--persist-to', ".wrangler/$name/pages"
+  ) { Invoke-Node --test routing.test.js }
+
+  Invoke-Node $wrangler d1 migrations apply DB --local --persist-to ".wrangler/$source" --config $config
+  Invoke-SessionChecks $source { Invoke-Node benchmarks/session/browser-check.js }
+
+  Invoke-Node benchmarks/session/backup.js export $source $name
+  Invoke-SessionChecks $source { Invoke-Node benchmarks/session/backup-http-check.js capture $name }
+  Invoke-Node benchmarks/session/backup.js restore $target $name
+  Invoke-SessionChecks $target { Invoke-Node benchmarks/session/backup-http-check.js compare $name }
+
+  Invoke-Node benchmarks/ign/check.js
+} finally {
+  $env:M0_INVITES_FILE = $previousInviteFile
+  $env:WRANGLER_SEND_METRICS = $previousMetrics
+  foreach ($relative in ".wrangler/$name", ".wrangler/$source", ".wrangler/$target", "backups/$name") {
+    $expected = [System.IO.Path]::GetFullPath((Join-Path $project $relative))
+    if (Test-Path -LiteralPath $expected) {
+      $resolved = (Resolve-Path -LiteralPath $expected).ProviderPath
+      if ($resolved -eq $expected -and $resolved.StartsWith("$project\", [StringComparison]::OrdinalIgnoreCase)) {
+        for ($attempt = 0; $attempt -lt 3; $attempt++) {
+          try {
+            Remove-Item -LiteralPath $resolved -Recurse -Force
+            break
+          } catch {
+            if ($attempt -eq 2) { Write-Warning "Could not remove generated test state $relative." }
+            else { Start-Sleep -Milliseconds 300 }
+          }
+        }
+      }
+    }
+  }
+  Pop-Location
+}

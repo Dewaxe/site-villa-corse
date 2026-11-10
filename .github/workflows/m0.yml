@@ -1,0 +1,35 @@
+name: M0 prototype
+
+on:
+  push:
+    branches: [main, 'm0/**']
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  local-checks:
+    if: ${{ toJSON(github.event.repository.private) == 'false' }}
+    runs-on: windows-2025
+    timeout-minutes: 12
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: prototypes/m0-pages
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24.22.1'
+          package-manager-cache: false
+      - name: Install locked dependencies
+        run: |
+          npm install --global pnpm@11.25.0
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          pnpm install --frozen-lockfile
+      - name: Run M0 checks
+        run: ./ci-check.ps1
