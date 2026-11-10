@@ -73,7 +73,7 @@ L'exercice a reconstruit deux révisions et deux images publiées. Le HTML et le
 
 Les requêtes JSON WebAuthn sont plafonnées à 16 Kio. Le JSON de publication est limité à 1 Kio et le formulaire d'upload à 260 ko. Le serveur arrête la lecture au-delà du plafond, y compris quand `Content-Length` est absent, et renvoie 413. La limite par image reste de 250 ko.
 
-D1 compte les tentatives par famille d'opérations dans une fenêtre de 60 secondes. Le test envoie une rafale concurrente et vérifie le 429 et `Retry-After`. Ce compteur est global au banc local. Avant une ouverture distante, il faut filtrer l'accès à l'essai et isoler les compteurs par acteur pour éviter qu'un tiers ne bloque les deux comptes.
+D1 compte les tentatives par opération et par compte sur 60 secondes. Les opérations privées utilisent le compte de la session. L'inscription et la connexion utilisent un compte de démonstration autorisé. Une rafale sur le compte B déclenche un 429 avec `Retry-After` pendant que le compte A reçoit encore son refus d'invitation habituel (401). Un tiers peut toujours cibler un compte connu. Un filtre d'entrée reste nécessaire pour l'essai distant.
 
 Une session dure 15 minutes, mais l'ajout ou la révocation d'une clé exige une authentification WebAuthn de moins de deux minutes. D1 vérifie à nouveau la fraîcheur lors de l'écriture. La CI vieillit une session fictive en base, vérifie que sa lecture reste possible mais que les mutations de clés renvoient 403, puis rejoue la connexion et poursuit le test. Une ancienne session migrée reçoit une date d'authentification nulle et doit se reconnecter pour modifier les clés.
 

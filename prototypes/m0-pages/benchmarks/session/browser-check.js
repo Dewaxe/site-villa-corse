@@ -181,6 +181,8 @@ try {
       const limited = await authPost({ account, invite: "invalid" });
       assert.equal(limited.status(), 429);
       assert.equal(limited.headers()["retry-after"], "60");
+      assert.equal((await authPost({ account: "demo-a", invite: "invalid" })).status(), 401);
+      assert.equal((await authPost({ account: "unknown", invite: "invalid" })).status(), 401);
     }
     await context.close();
     results.push(account);

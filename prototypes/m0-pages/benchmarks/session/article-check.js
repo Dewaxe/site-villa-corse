@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { adminArticle, publicArticle } from "./articles.js";
+import { isDemoWebP } from "./webp.js";
 
 const origin = "http://localhost:8791";
 const article = origin + "/articles/article-test";
@@ -72,6 +73,26 @@ export async function checkArticle(page, context, waitForStatus) {
   await waitForStatus("Révision publiée.");
   const first = await readPublic(v1, "Version un");
   assert.ok(first.bytes.length > 0 && first.bytes.length <= 250_000);
+
+  // Keep the first VP8 partition and remove the pixel data that follows it.
+  const firstPartitionSize = first.bytes.readUIntLE(20, 3) >>> 5;
+  const chunkSize = 10 + firstPartitionSize;
+  assert.ok(chunkSize < first.bytes.readUInt32LE(16));
+  const corrupt = Buffer.concat([first.bytes.subarray(0, 20 + chunkSize), Buffer.alloc(chunkSize % 2)]);
+  corrupt.writeUInt32LE(corrupt.length - 8, 4);
+  corrupt.writeUInt32LE(chunkSize, 16);
+  assert.equal(await isDemoWebP(new File([corrupt], "corrupt.webp", { type: "image/webp" })), true);
+  assert.equal(await page.evaluate(async (bytes) => {
+    const blob = new Blob([Uint8Array.from(bytes)], { type: "image/webp" });
+    try {
+      const image = await createImageBitmap(blob);
+      image.close();
+      return true;
+    } catch (error) {
+      if (error.name !== "InvalidStateError") throw error;
+      return false;
+    }
+  }, [...corrupt]), false);
 
   const sendInvalid = async (buffer, mimeType = "image/webp", status = 400) => {
     const rejected = await context.request.post(stateUrl + "/draft", {

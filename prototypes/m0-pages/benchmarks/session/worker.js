@@ -223,8 +223,11 @@ export default {
     if (path === "/api/articles" || path.startsWith("/api/articles/")) {
       if (request.method !== "GET" && request.headers.get("Origin") !== origin) return deny();
       const token = sessionToken(request);
-      if (!token || !(await activeSession(DB, await tokenHash(token)))) return deny();
-      if (request.method === "POST" && !(await takeAttempt(DB, "articles", limits.articles))) return tooMany();
+      const session = token && await activeSession(DB, await tokenHash(token));
+      if (!session) return deny();
+      if (request.method === "POST" && !(await takeAttempt(DB, "articles", session.account, limits.articles))) {
+        return tooMany();
+      }
       return adminArticle(request, DB, env.IMAGES, path);
     }
 
@@ -267,14 +270,14 @@ export default {
       const session = await activeSession(DB, hash);
       if (!session) return deny();
       if (session.authenticated_at < Date.now() - recentWindow) return needRecentLogin();
-      if (!(await takeAttempt(DB, scope, limits[scope]))) return tooMany();
+      if (!(await takeAttempt(DB, scope, session.account, limits[scope]))) return tooMany();
 
       if (path === "/api/keys/revoke") return revokeKey(DB, session.account, body?.id, hash);
       return register(DB, path, { ...body, account: session.account }, hash);
     }
 
-    if (!(await takeAttempt(DB, scope, limits[scope]))) return tooMany();
     if (!accounts.has(body?.account)) return deny();
+    if (!(await takeAttempt(DB, scope, body.account, limits[scope]))) return tooMany();
 
     switch (path) {
       case "/api/register/options":
