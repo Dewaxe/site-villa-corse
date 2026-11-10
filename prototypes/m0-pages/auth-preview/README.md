@@ -42,3 +42,15 @@ Sur la preview temporaire, exécuter `node auth-preview/crypto-check.js` avec `P
 La comparaison avec le parcours complet indique un ordre de grandeur. Les mesures viennent de deux exécutions distinctes et ne permettent pas de calculer le coût de D1 par soustraction.
 
 Le 10/11/2026, Pages avait mesuré le CPU du parcours complet exécuté dans Edge à 6,207 ms en médiane et 10,927 ms au p95. Sur le créneau UTC de 21:18:46, la sonde isolée a renvoyé 24 réponses 204. GraphQL, groupé par seconde, estime 24 invocations, avec un intervalle d’échantillonnage de 1,6 et un nom de script indisponible. CPU médian 2,066 ms, p95 5,986 ms, p99 9,068 ms. La répétition d’une même assertion synthétique peut favoriser un chemin chaud. La prochaine mesure doit comparer des parcours complets sur des lots plus grands et inspecter les étapes autour de la signature avant toute optimisation.
+
+
+## Reprise après regroupement D1
+
+Le 10/11/2026, le parcours Edge a réussi sur le déploiement de preview du commit `4c3a73a` avec une base D1 fictive neuve. Huit vérifications de connexion ont renvoyé 200. Le rejeu et la lecture de session après déconnexion ont renvoyé 401. L’API Pages a confirmé zéro déploiement de production.
+
+| Lot de huit vérifications | CPU médian | CPU p95 |
+| --- | ---: | ---: |
+| Avant, quatre allers-retours D1 | 6,207 ms | 10,927 ms |
+| Après, trois allers-retours D1 | 3,223 ms | 6,157 ms |
+
+Le relevé après changement couvre les secondes 21:29:29 et 21:29:30 UTC. GraphQL rapporte huit invocations réussies, un intervalle d’échantillonnage de 1 et un p99 de 6,157 ms. Le script reste indiqué comme `__unknown__`. Le rapprochement repose sur le créneau et les volumes. Les deux lots sont petits et utilisent des bases distinctes. Le nouveau relevé montre une marge sur cet essai et ne prédit pas la marge en exploitation.
