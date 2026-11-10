@@ -10,6 +10,24 @@ Wrangler Pages 4.150.0 reçoit `--d1 DB=…` et `--kv IMAGES=…` lors de l'essa
 
 ## Avant toute création de ressources
 
-- Se connecter au compte Cloudflare voulu et confirmer dans le tableau de bord le plan **Workers Free** et les conditions d'activation sans carte, abonnement payant ou essai. Les conditions publiques ont été vérifiées, mais le compte n'a pas été inspecté. [Workers](https://www.cloudflare.com/products/workers/), [Pages Functions](https://developers.cloudflare.com/pages/functions/pricing/), [D1](https://developers.cloudflare.com/d1/platform/pricing/), [KV](https://developers.cloudflare.com/kv/platform/pricing/).
+- Se connecter au compte Cloudflare voulu et confirmer dans le tableau de bord le plan **Workers Free** et les conditions d'activation sans carte, abonnement payant ou essai. Pour la première preview, voir le contrôle du compte dans le journal de preuve. [Workers](https://www.cloudflare.com/products/workers/), [Pages Functions](https://developers.cloudflare.com/pages/functions/pricing/), [D1](https://developers.cloudflare.com/d1/platform/pricing/), [KV](https://developers.cloudflare.com/kv/platform/pricing/).
 - Préparer un projet Pages isolé, une base D1 et un namespace KV propres à la preview. Importer des révisions et médias fictifs uniquement. Contrôler le réglage **Fail closed** et l'en-tête `noindex` sur l'URL effective. Suivre le [plan M0](../../../docs/M0.md#vérifications-avant-et-pendant-la-preview).
 - Commencer par vérifier le rendu public, le routage et les métriques avec cet artefact. L'ouverture de l'écriture en preview nécessite un incrément séparé pour l'origine WebAuthn, la réauthentification, les limites de débit et de corps et la revue de l'outillage. Les avis sur Undici via Wrangler/Miniflare restent à traiter avant cette exposition.
+
+## Déploiement de preuve du 10/11/2026
+
+L’artefact du commit `f4720b7` a été chargé par Direct Upload dans le projet dédié `m0-villa-corse-d651ac5b`, sur la branche `m0-preview`. [Alias de preview](https://m0-preview.m0-villa-corse-d651ac5b.pages.dev/) · [Déploiement vérifié](https://550f51b8.m0-villa-corse-d651ac5b.pages.dev/).
+
+- Workers Free a été confirmé par William. Le contrôle de facturation n'est pas accessible via les autorisations OAuth utilisées par Wrangler.
+- Les bindings de preview lisent deux révisions et deux images fictives. L'API Pages confirme `fail_open: false` et zéro déploiement de production. Cloudflare impose la même valeur de `fail_open` pour la preview et la production de ce projet isolé.
+- Le test HTTPS compare le HTML, le SHA-256 des images, `noindex` et les refus 403. Pages Tail a reçu les trois requêtes dynamiques marquées et aucune trace pour les deux ressources statiques marquées. Le quota n'a pas été épuisé et ces traces ne mesurent pas le CPU de la connexion ou de l'upload.
+
+Pour rejouer le test depuis `prototypes/m0-pages` avec le manifeste fictif de l'exercice local :
+
+```powershell
+$env:M0_PAGES_ORIGIN = 'https://550f51b8.m0-villa-corse-d651ac5b.pages.dev'
+node preview/check.js exercice-m0
+Remove-Item Env:M0_PAGES_ORIGIN
+```
+
+Cloudflare ne propose le rollback natif que pour la production. Sur ce projet de preview, la preuve de retour de code consistera à redéployer l'artefact antérieur. [Rollback Pages](https://developers.cloudflare.com/pages/configuration/rollbacks/).

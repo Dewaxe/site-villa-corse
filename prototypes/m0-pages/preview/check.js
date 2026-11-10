@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 
-const origin = "http://127.0.0.1:8792";
+const origin = process.env.M0_PAGES_ORIGIN ?? "http://127.0.0.1:8792";
 const path = "/articles/article-test";
 const routes = JSON.parse(await readFile(new URL("./public/_routes.json", import.meta.url)));
 assert.equal(routes.version, 1);
@@ -20,7 +20,7 @@ async function check(url, { status, invoked, method = "GET" }) {
   const response = await fetch(origin + url, { method, redirect: "manual" });
   assert.equal(response.status, status, method + " " + url);
   assert.equal(response.headers.get("X-M0-Invoked"), invoked ? "1" : null, url);
-  assert.equal(response.headers.get("X-Robots-Tag"), "noindex", url);
+  assert.match(response.headers.get("X-Robots-Tag") ?? "", /\bnoindex\b/, url);
   return response;
 }
 
