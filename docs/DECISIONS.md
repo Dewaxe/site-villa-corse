@@ -61,6 +61,10 @@ Choisir stratégie session/passwords/anti-brute-force compatible runtime et mét
 
 **Suite proposée.** Comparer une clé d'accès WebAuthn, dont le serveur vérifie une signature. Vérifier l'enrôlement privé de deux comptes, le défi à usage unique, l'origine, le RP ID, les sessions révocables et la récupération en cas de perte. Garder l'ADR ouvert jusqu'à validation de l'expérience et du budget CPU. Cloudflare Zero Trust Free est écarté à ce stade, car son parcours d'inscription documenté exige des informations de paiement. Le choix du canal de notification reste ouvert. [WebAuthn](https://www.w3.org/TR/webauthn-2/), [inscription Cloudflare Zero Trust](https://developers.cloudflare.com/cloudflare-one/setup/).
 
+**Essai WebAuthn local.** Deux identités fictives passent la vérification ES256 avec le même rôle. Les tests refusent une mauvaise origine, un mauvais RP ID, un mauvais défi, une réponse sans vérification utilisateur et une signature faite avec la clé de l'autre identité. Deux soumissions simultanées du même défi donnent un succès et un refus dans le même isolate. La médiane HTTP de la vérification seule est de 5,6 ms sur dix requêtes, contre 189,7 ms pour scrypt dans l'essai précédent. La latence locale reste distincte du CPU en preview. Voir le [banc WebAuthn](../prototypes/m0-pages/benchmarks/webauthn/README.md).
+
+**Suite à vérifier.** Tester l'enrôlement et la connexion en navigateur avec deux comptes préautorisés. Stocker les défis à usage unique et les sessions révocables dans D1 avec une consommation atomique des défis. Essayer une deuxième clé d'accès par compte sur un appareil indépendant et la révocation de la clé perdue, puis définir un réenrôlement contrôlé si les deux clés sont perdues. Ces parcours et le budget CPU doivent être démontrés avant l'adoption.
+
 ### ADR-005 — Cartographie aérienne **OUVERT**
 
 Étudier IGN WMTS/couverture Cargèse, attribution, fallback plan, bibliothèques de tracé et performance. Prototype tôt, implémentation finale M4.
