@@ -16,16 +16,17 @@ try {
     const page = await context.newPage();
     const cdp = await context.newCDPSession(page);
     await cdp.send("WebAuthn.enable");
-    await cdp.send("WebAuthn.addVirtualAuthenticator", {
+    const addAuthenticator = (transport) => cdp.send("WebAuthn.addVirtualAuthenticator", {
       options: {
         protocol: "ctap2",
-        transport: "internal",
+        transport,
         hasResidentKey: true,
         hasUserVerification: true,
         isUserVerified: true,
         automaticPresenceSimulation: true,
       },
     });
+    const { authenticatorId: primary } = await addAuthenticator("internal");
 
     await page.goto(origin);
     const sessionUrl = origin + "/api/session";
@@ -69,7 +70,7 @@ try {
       page.click("#login"),
     ]);
     assert.equal(relogin.status(), 200);
-    const sessionCookie = await getSessionCookie();
+    let sessionCookie = await getSessionCookie();
     assert.ok(sessionCookie && sessionCookie.value !== firstCookie.value);
     const replaced = await fetch(sessionUrl, { headers: { Cookie: `${cookieName}=${firstCookie.value}` } });
     assert.equal(replaced.status, 401);
@@ -78,6 +79,65 @@ try {
     });
     assert.equal(rejectedLogout.status(), 401);
     assert.equal((await context.request.get(sessionUrl)).status(), 200);
+
+    if (account === "demo-a") {
+      const post = (path, data) => context.request.post(origin + path, { data, headers: { Origin: origin } });
+      const { credentials: [lost] } = await cdp.send("WebAuthn.getCredentials", { authenticatorId: primary });
+      const lostId = Buffer.from(lost.credentialId, "base64").toString("base64url");
+      const lastKey = await post("/api/keys/revoke", { id: lostId });
+      assert.equal(lastKey.status(), 409);
+
+      // Capture a valid assertion before the loss to test rejection after revocation.
+      const options = await (await post("/api/login/options", { account })).json();
+      const oldAssertion = await page.evaluate(async (options) => {
+        const credential = await navigator.credentials.get({
+          publicKey: PublicKeyCredential.parseRequestOptionsFromJSON(options),
+        });
+        return credential.toJSON();
+      }, options);
+
+      await cdp.send("WebAuthn.setAutomaticPresenceSimulation", { authenticatorId: primary, enabled: false });
+      const { authenticatorId: backup } = await addAuthenticator("usb");
+      await page.click("#backup");
+      await waitForStatus("Clé de secours ajoutée.");
+      const { credentials: [spare] } = await cdp.send("WebAuthn.getCredentials", { authenticatorId: backup });
+      const spareId = Buffer.from(spare.credentialId, "base64").toString("base64url");
+
+      await cdp.send("WebAuthn.removeVirtualAuthenticator", { authenticatorId: primary });
+      const lostCookie = sessionCookie;
+      await context.clearCookies();
+      assert.equal((await context.request.get(sessionUrl)).status(), 401);
+      const anonymousBackup = await post("/api/keys/options", {});
+      assert.equal(anonymousBackup.status(), 401);
+
+      const [recovered] = await Promise.all([
+        page.waitForResponse((response) => response.url().endsWith("/api/login/verify")),
+        page.click("#login"),
+      ]);
+      assert.equal(recovered.status(), 200);
+      await waitForStatus(`Session ouverte pour ${account}.`);
+      sessionCookie = await getSessionCookie();
+      assert.ok(sessionCookie && sessionCookie.value !== lostCookie.value);
+
+      const oldSession = () => fetch(sessionUrl, {
+        headers: { Cookie: `${cookieName}=${lostCookie.value}` },
+      });
+      assert.equal((await oldSession()).status, 200);
+
+      await page.click("#list");
+      await waitForStatus("Clés chargées.");
+      await page.selectOption("#keys", lostId);
+      await page.click("#revoke");
+      await waitForStatus("Clé révoquée.");
+      assert.equal((await oldSession()).status, 401);
+      assert.equal((await context.request.get(sessionUrl)).status(), 200);
+      const stale = await post("/api/login/verify", {
+        account, challenge: options.challenge, response: oldAssertion,
+      });
+      assert.equal(stale.status(), 401);
+      assert.deepEqual(await (await context.request.get(origin + "/api/keys")).json(), [spareId]);
+      assert.equal((await post("/api/keys/revoke", { id: spareId })).status(), 409);
+    }
 
     await page.click("#logout");
     await waitForStatus("Session révoquée.");
@@ -91,4 +151,4 @@ try {
   await browser.close();
 }
 
-console.log(`Edge et D1 local : parcours validé pour ${results.length} comptes fictifs.`);
+console.log(`Edge et D1 local : ${results.length} comptes validés, récupération et révocation vérifiées pour demo-a.`);

@@ -40,27 +40,35 @@ function canEnroll(env, account, invite) {
     timingSafeEqual(Buffer.from(invite), Buffer.from(expected));
 }
 
-async function storeChallenge(db, challenge, account, purpose) {
+async function activeSession(db, hash) {
+  if (!hash) return null;
+  return db.prepare("SELECT account FROM sessions WHERE token_hash = ? AND expires_at > ?")
+    .bind(hash, Date.now()).first();
+}
+
+async function storeChallenge(db, challenge, account, purpose, sessionHash = null) {
   const now = Date.now();
   await db.batch([
     db.prepare("DELETE FROM challenges WHERE expires_at <= ?").bind(now),
-    db.prepare("INSERT INTO challenges VALUES (?, ?, ?, ?)").bind(challenge, account, purpose, now + 120_000),
+    db.prepare("INSERT INTO challenges VALUES (?, ?, ?, ?, ?)")
+      .bind(challenge, account, purpose, now + 120_000, sessionHash),
   ]);
 }
 
-function consumeChallenge(db, challenge, account, purpose) {
+function consumeChallenge(db, challenge, account, purpose, sessionHash = null) {
   if (typeof challenge !== "string") return null;
   return db.prepare(`
     DELETE FROM challenges
-    WHERE challenge = ? AND account = ? AND purpose = ? AND expires_at > ?
+    WHERE challenge = ? AND account = ? AND purpose = ? AND expires_at > ? AND session_hash IS ?
     RETURNING challenge
-  `).bind(challenge, account, purpose, Date.now()).first();
+  `).bind(challenge, account, purpose, Date.now(), sessionHash).first();
 }
 
-async function register(db, path, body) {
+async function register(db, path, body, sessionHash = null) {
   const { account } = body;
-  if (path === "/api/register/options") {
-    if (await db.prepare("SELECT 1 FROM credentials WHERE account = ?").bind(account).first()) {
+  if (path.endsWith("/options")) {
+    const { results: keys } = await db.prepare("SELECT id FROM credentials WHERE account = ?").bind(account).all();
+    if (!sessionHash && keys.length) {
       return json({ error: "Ce compte possède déjà une clé." }, 409);
     }
     const options = await generateRegistrationOptions({
@@ -70,13 +78,14 @@ async function register(db, path, body) {
       userName: account,
       attestationType: "none",
       supportedAlgorithmIDs: [-7],
+      excludeCredentials: keys.map(({ id }) => ({ id })),
       authenticatorSelection: { residentKey: "required", userVerification: "required" },
     });
-    await storeChallenge(db, options.challenge, account, "register");
+    await storeChallenge(db, options.challenge, account, "register", sessionHash);
     return json(options);
   }
 
-  const challenge = await consumeChallenge(db, body.challenge, account, "register");
+  const challenge = await consumeChallenge(db, body.challenge, account, "register", sessionHash);
   if (!challenge) return deny();
 
   let result;
@@ -95,26 +104,41 @@ async function register(db, path, body) {
   if (!result.verified) return deny();
 
   const { credential } = result.registrationInfo;
-  const insert = await db.prepare("INSERT INTO credentials VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING")
-    .bind(credential.id, account, encode(credential.publicKey), credential.counter).run();
+  // Recheck authorization in the write itself, even if the session expired during verification.
+  const allowed = sessionHash
+    ? db.prepare(`
+        INSERT INTO credentials
+        SELECT ?, ?, ?, ? WHERE EXISTS (
+          SELECT 1 FROM sessions WHERE token_hash = ? AND account = ? AND expires_at > ?
+        ) ON CONFLICT DO NOTHING
+      `).bind(credential.id, account, encode(credential.publicKey), credential.counter, sessionHash, account, Date.now())
+    : db.prepare(`
+        INSERT INTO credentials
+        SELECT ?, ?, ?, ? WHERE NOT EXISTS (
+          SELECT 1 FROM credentials WHERE account = ?
+        ) ON CONFLICT DO NOTHING
+      `).bind(credential.id, account, encode(credential.publicKey), credential.counter, account);
+  const insert = await allowed.run();
   return insert.meta.changes === 1 ? json({ ok: true }) : deny();
 }
 
 async function login(db, path, body, previousToken) {
   const { account } = body;
-  const saved = await db.prepare("SELECT * FROM credentials WHERE account = ?").bind(account).first();
-  if (!saved) return deny();
-
   if (path === "/api/login/options") {
+    const { results: keys } = await db.prepare("SELECT id FROM credentials WHERE account = ?").bind(account).all();
+    if (!keys.length) return deny();
     const options = await generateAuthenticationOptions({
-      rpID, userVerification: "required", allowCredentials: [{ id: saved.id }],
+      rpID, userVerification: "required", allowCredentials: keys.map(({ id }) => ({ id })),
     });
     await storeChallenge(db, options.challenge, account, "login");
     return json(options);
   }
 
   const challenge = await consumeChallenge(db, body.challenge, account, "login");
-  if (!challenge) return deny();
+  if (!challenge || typeof body.response?.id !== "string") return deny();
+  const saved = await db.prepare("SELECT * FROM credentials WHERE id = ? AND account = ?")
+    .bind(body.response.id, account).first();
+  if (!saved) return deny();
 
   let result;
   try {
@@ -138,8 +162,8 @@ async function login(db, path, body, previousToken) {
   const [update, insert] = await db.batch([
     db.prepare("UPDATE credentials SET counter = ? WHERE id = ? AND counter = ?")
       .bind(result.authenticationInfo.newCounter, saved.id, saved.counter),
-    db.prepare("INSERT INTO sessions SELECT ?, ?, ? WHERE changes() = 1")
-      .bind(hash, account, expiresAt),
+    db.prepare("INSERT INTO sessions SELECT ?, ?, ?, ? WHERE changes() = 1")
+      .bind(hash, account, expiresAt, saved.id),
     db.prepare(`
       DELETE FROM sessions
       WHERE expires_at <= ?
@@ -152,6 +176,23 @@ async function login(db, path, body, previousToken) {
   });
 }
 
+async function revokeKey(db, account, id, sessionHash) {
+  if (typeof id !== "string") return deny();
+
+  // Keep at least one key, including when two revocations race.
+  const deletion = await db.prepare(`
+    DELETE FROM credentials
+    WHERE id = ? AND account = ?
+      AND EXISTS (SELECT 1 FROM credentials WHERE account = ? AND id <> ?)
+      AND EXISTS (SELECT 1 FROM sessions WHERE token_hash = ? AND account = ? AND expires_at > ?)
+    RETURNING id
+  `).bind(id, account, account, id, sessionHash, account, Date.now()).first();
+
+  return deletion
+    ? json({ ok: true })
+    : json({ error: "Cette clé ne peut pas être révoquée." }, 409);
+}
+
 export default {
   async fetch(request, { DB, ...env }) {
     const url = new URL(request.url);
@@ -161,9 +202,17 @@ export default {
     if (path === "/api/session" && request.method === "GET") {
       const token = sessionToken(request);
       if (!token) return deny();
-      const session = await DB.prepare("SELECT account FROM sessions WHERE token_hash = ? AND expires_at > ?")
-        .bind(await tokenHash(token), Date.now()).first();
+      const session = await activeSession(DB, await tokenHash(token));
       return session ? json({ account: session.account, role: "demo-admin" }) : deny();
+    }
+
+    if (path === "/api/keys" && request.method === "GET") {
+      const token = sessionToken(request);
+      const session = token && await activeSession(DB, await tokenHash(token));
+      if (!session) return deny();
+      const { results } = await DB.prepare("SELECT id FROM credentials WHERE account = ?")
+        .bind(session.account).all();
+      return json(results.map(({ id }) => id));
     }
 
     if (request.method !== "POST" || request.headers.get("Origin") !== origin) return deny();
@@ -180,6 +229,19 @@ export default {
     } catch {
       return json({ error: "Requête invalide." }, 400);
     }
+    if (path.startsWith("/api/keys/")) {
+      const token = sessionToken(request);
+      const hash = token && await tokenHash(token);
+      const session = await activeSession(DB, hash);
+      if (!session) return deny();
+
+      if (path === "/api/keys/revoke") return revokeKey(DB, session.account, body?.id, hash);
+      if (path === "/api/keys/options" || path === "/api/keys/verify") {
+        return register(DB, path, { ...body, account: session.account }, hash);
+      }
+      return json({ error: "Route inconnue." }, 404);
+    }
+
     if (!accounts.has(body?.account)) return deny();
 
     switch (path) {
