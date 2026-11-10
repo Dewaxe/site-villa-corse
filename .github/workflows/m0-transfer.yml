@@ -6,13 +6,18 @@ on:
     paths:
       - '.github/workflows/m0-transfer.yml'
   workflow_dispatch:
+    inputs:
+      job:
+        description: Opaque publication request
+        required: false
+        type: string
 
 permissions:
   contents: read
 
 jobs:
   transfer:
-    if: ${{ vars.M0_TRANSFER_ORIGIN != '' }}
+    if: ${{ vars.M0_TRANSFER_ORIGIN != '' && inputs.job == '' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 6
     steps:
@@ -34,3 +39,28 @@ jobs:
           TRANSFER_ORIGIN: ${{ vars.M0_TRANSFER_ORIGIN }}
           TRANSFER_TOKEN: ${{ secrets.M0_TRANSFER_TOKEN }}
         run: node benchmarks/image-publication/transfer-check.js
+
+  publication:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.job != '' && vars.M0_PUBLICATION_ORIGIN != '' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '24.22.1'
+          package-manager-cache: false
+      - name: Install locked processor
+        working-directory: prototypes/m0-pages
+        run: |
+          npm install --global pnpm@11.25.0
+          pnpm install --frozen-lockfile
+      - name: Process requested revision
+        working-directory: prototypes/m0-pages
+        env:
+          PUBLICATION_ORIGIN: ${{ vars.M0_PUBLICATION_ORIGIN }}
+          PUBLICATION_TOKEN: ${{ secrets.M0_PUBLICATION_TOKEN }}
+          PUBLICATION_JOB: ${{ inputs.job }}
+        run: node benchmarks/image-publication/github-runner.js

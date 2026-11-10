@@ -86,6 +86,8 @@ Tester variantes Web, compression et limites, cache à cohérence éventuelle, p
 
 **Demandes persistantes.** Le handler article peut enregistrer une demande D1 unique et appeler un déclencheur injecté. Le dérivé reçoit une clé KV immuable et une nouvelle révision. Les résultats périmés ou rejoués ne modifient pas une publication plus récente. La sauvegarde suit la clé effective du média. Le Worker d’admin reste à raccorder au déclencheur GitHub. [Test des handlers](../prototypes/m0-pages/benchmarks/image-publication/README.md#demandes-persistantes-avec-le-schéma-d1).
 
+**Raccordement au workflow.** Le Worker admin peut déclencher GitHub avec un identifiant opaque, et les routes de transfert et de retour exigent un secret distinct. Le navigateur suit la demande après un seul clic. Les tests locaux des handlers passent et GitHub accepte le déclenchement de contrôle sur la branche M0. La délégation limitée et le clic en preview restent à vérifier. [Protocole](../prototypes/m0-pages/benchmarks/image-publication/README.md#déclenchement-et-retour-de-résultat).
+
 ### ADR-004 — Authentification/notifications **OUVERT**
 
 Choisir stratégie session/passwords/anti-brute-force compatible runtime et méthode d'alerte au propriétaire sans risque de paiement, avec tests d'attaque et reprise.

@@ -47,3 +47,14 @@ Le déclenchement du traitement est injecté dans le serveur local. Le workflow 
 Le test confirme le maintien de la demande après un échec de déclenchement, le réencodage du fichier récupéré par identifiant de demande, le stockage du dérivé sous une clé immuable liée à son empreinte, puis le changement atomique du pointeur publié. Le résultat crée une nouvelle révision, ce qui préserve les octets du brouillon et les médias déjà publiés.
 
 La panne d’écriture KV, la mauvaise empreinte du source, le résultat rejoué et une version devenue périmée sont vérifiés. Le média du brouillon répond 404 avant publication. La sauvegarde exporte la clé effective du dérivé et la restauration le remet sous sa clé d’article standard. La suite Wrangler vérifie aussi les données du parcours existant.
+
+
+## Déclenchement et retour de résultat
+
+En mode `PUBLICATION_MODE=queued`, le Worker admin enregistre la demande avant d’appeler GitHub. Le navigateur interroge son état après le clic. Le workflow reçoit uniquement un identifiant opaque. Il récupère le WebP privé via un jeton de traitement et renvoie le dérivé, avec l’empreinte du fichier source. Le serveur vérifie l’association à la demande et le format du dérivé avant publication.
+
+Les tests locaux couvrent le contenu du déclenchement, l’absence d’accès anonyme, le retour authentifié et son rejeu. [Déclenchement de contrôle](https://github.com/Dewaxe/site-villa-corse/actions/runs/42912218152) accepté sur la branche M0, sans exécution du traitement dans ce contrôle.
+
+Pour la prochaine preview, prévoir deux autorisations distinctes. `GITHUB_DISPATCH_TOKEN` est un secret Cloudflare limité à Actions en écriture sur ce seul dépôt. `VALIDATION_TOKEN` est un jeton aléatoire de 32 octets partagé avec le secret GitHub `M0_PUBLICATION_TOKEN`. La variable GitHub `M0_PUBLICATION_ORIGIN` désigne la preview de test. Le navigateur ne reçoit aucun de ces secrets. [Permissions GitHub](https://docs.github.com/en/rest/actions/workflows#create-a-workflow-dispatch-event)
+
+La preview avec admin et le test du clic hébergé restent à réaliser. Un échec du runner laisse actuellement la demande en attente et la révision précédente en ligne. La remontée d’un état d’échec explicite reste à tester avant ouverture.

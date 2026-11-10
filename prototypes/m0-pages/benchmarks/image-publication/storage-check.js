@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import { adminArticle, publicArticle } from "../session/articles.js";
 import { publicationInput, finishPublication } from "../session/publication-jobs.js";
 import { processImage } from "./processor.js";
+import { validationCallback, dispatchPublication } from "../session/github-publication.js";
 
 const sqlite = new DatabaseSync(":memory:");
 for (const migration of ["0001_auth", "0002_recovery", "0003_article", "0004_hardening", "0005_publication_jobs"]) {
@@ -59,12 +60,31 @@ try {
   assert.equal(response.status, 202);
   const { id } = await response.json();
   assert.deepEqual(dispatched, [id]);
+  const realFetch = globalThis.fetch;
+  try {
+    globalThis.fetch = async (url, options) => {
+      assert.match(url, /actions\/workflows\/m0-transfer\.yml\/dispatches$/);
+      assert.deepEqual(JSON.parse(options.body), { ref: "m0/routage-pages", inputs: { job: id } });
+      return new Response(null, { status: 204 });
+    };
+    await dispatchPublication(id, { GITHUB_DISPATCH_TOKEN: "test-only" });
+    await assert.rejects(dispatchPublication(id, {}), /non configuré/);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
   assert.equal(sqlite.prepare("SELECT revision_id FROM article_state").get().revision_id, null);
   const retry = await publish(0, dispatch);
   assert.equal((await retry.json()).id, id);
   assert.equal(sqlite.prepare("SELECT count(*) AS n FROM publication_jobs").get().n, 1);
   assert.equal((await publicArticle(new Request(origin + "/media/article/" + draft + ".webp"), db, images,
     new URL(origin + "/media/article/" + draft + ".webp"))).status, 404);
+  const validationEnv = { DB: db, IMAGES: images, VALIDATION_TOKEN: "v".repeat(43) };
+  const callbackUrl = origin + "/internal/publication/" + id;
+  assert.equal((await validationCallback(new Request(callbackUrl + "/input"), validationEnv)).status, 404);
+  const privateInput = await validationCallback(new Request(callbackUrl + "/input", {
+    headers: { Authorization: "Bearer " + validationEnv.VALIDATION_TOKEN },
+  }), validationEnv);
+  assert.equal(privateInput.status, 200);
   const input = await publicationInput(db, images, id);
   const proof = await processImage(id, Buffer.from(input.bytes));
   assert.ok(proof);
@@ -72,8 +92,22 @@ try {
   const brokenKv = { ...images, put: async () => { throw new Error("KV indisponible"); } };
   await assert.rejects(finishPublication(db, brokenKv, id, proof.sourceSha256, proof.output), /indisponible/);
   assert.equal(sqlite.prepare("SELECT version FROM article_state").get().version, 0);
-  assert.equal(await finishPublication(db, images, id, proof.sourceSha256, proof.output), "published");
-  assert.equal(await finishPublication(db, images, id, proof.sourceSha256, proof.output), "published");
+  const callback = await validationCallback(new Request(callbackUrl + "/result", {
+    method: "POST", headers: {
+      Authorization: "Bearer " + validationEnv.VALIDATION_TOKEN,
+      "Content-Type": "image/webp", "X-Source-SHA256": proof.sourceSha256,
+    }, body: proof.output,
+  }), validationEnv);
+  assert.equal(callback.status, 200);
+  assert.equal((await callback.json()).status, "published");
+  const replayedCallback = await validationCallback(new Request(callbackUrl + "/result", {
+    method: "POST", headers: {
+      Authorization: "Bearer " + validationEnv.VALIDATION_TOKEN,
+      "Content-Type": "image/webp", "X-Source-SHA256": proof.sourceSha256,
+    }, body: proof.output,
+  }), validationEnv);
+  assert.equal(replayedCallback.status, 200);
+  assert.equal((await replayedCallback.json()).status, "published");
   assert.equal(sqlite.prepare("SELECT version FROM article_state").get().version, 1);
   const url = new URL(origin + "/media/article/" + id + ".webp");
   const image = await publicArticle(new Request(url), db, images, url);

@@ -1,3 +1,4 @@
+import { dispatchPublication, validationCallback } from "./github-publication.js";
 import { adminArticle, publicArticle } from "./articles.js";
 import { readJson, requestErrorStatus } from "./request-limits.js";
 import { takeAttempt } from "./rate-limit.js";
@@ -226,6 +227,9 @@ export async function handleSessionRequest(request, { DB, ...env }, origin) {
   if (url.origin !== origin) return deny();
   const path = url.pathname;
 
+  if (path.startsWith("/internal/publication/")) {
+    return validationCallback(request, { DB, ...env });
+  }
   const publicResponse = publicArticle(request, DB, env.IMAGES, url);
   if (publicResponse) return publicResponse;
 
@@ -237,7 +241,8 @@ export async function handleSessionRequest(request, { DB, ...env }, origin) {
     if (request.method === "POST" && !(await takeAttempt(DB, "articles", session.account, limits.articles))) {
       return tooMany();
     }
-    return adminArticle(request, DB, env.IMAGES, path);
+    return adminArticle(request, DB, env.IMAGES, path,
+      env.PUBLICATION_MODE === "queued" ? (id) => dispatchPublication(id, env) : undefined);
   }
 
   if (path === "/api/session" && request.method === "GET") {

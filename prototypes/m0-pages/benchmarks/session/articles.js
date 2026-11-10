@@ -125,6 +125,11 @@ async function publish(request, db, images, dispatch) {
 }
 
 export async function adminArticle(request, db, images, path, dispatch) {
+  const jobPath = /^\/api\/articles\/jobs\/([0-9a-f-]{36})$/.exec(path);
+  if (request.method === "GET" && jobPath) {
+    const job = await db.prepare("SELECT status FROM publication_jobs WHERE id = ?").bind(jobPath[1]).first();
+    return job ? json(job) : json({ error: "Demande introuvable." }, 404);
+  }
   if (request.method === "GET" && path === "/api/articles") {
     const [state, revisions] = await db.batch([
       db.prepare("SELECT version, revision_id FROM article_state WHERE id = 1"),

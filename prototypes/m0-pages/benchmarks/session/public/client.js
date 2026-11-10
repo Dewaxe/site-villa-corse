@@ -156,7 +156,20 @@ action("#load-revisions", async () => {
 
 action("#publish", async () => {
   if (!revisions.value) return "Choisis une révision.";
-  await post("/api/articles/publish", { id: revisions.value, version });
+  const result = await post("/api/articles/publish", { id: revisions.value, version });
+  if (result.pending) {
+    status.textContent = "Image en cours de validation…";
+    const deadline = Date.now() + 5 * 60_000;
+    let state;
+    do {
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      const response = await fetch("/api/articles/jobs/" + result.id);
+      if (!response.ok) throw new Error("Suivi de validation indisponible.");
+      state = await response.json();
+      if (state.status === "stale") throw new Error("Une version plus récente a été publiée.");
+    } while (state.status === "pending" && Date.now() < deadline);
+    if (state.status !== "published") return "Validation encore en cours. La version précédente reste en ligne.";
+  }
   await loadRevisions();
   return "Révision publiée.";
 });
