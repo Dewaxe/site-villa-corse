@@ -90,6 +90,8 @@ Tester variantes Web, compression et limites, cache à cohérence éventuelle, p
 
 **Clic de publication hébergé.** Le 11/11/2026, Edge a déclenché un traitement GitHub depuis le bouton admin. Le dérivé WebP a été renvoyé à Pages et publié via D1/KV. L’essai hébergé des pannes du runner et des fichiers corrompus reste à compléter. [Workflow](https://github.com/Dewaxe/site-villa-corse/actions/runs/43005104705).
 
+**Restauration hébergée.** Deux révisions fictives et leurs médias ont été exportés depuis la preview, puis restaurés dans des ressources D1/KV neuves. Le pointeur, le HTML hors origine canonique et les empreintes des médias concordent. Les sessions et clés d’accès restent hors export. [Preuve](../prototypes/m0-pages/preview/README.md#restauration-d1kv-hébergée).
+
 ### ADR-004 — Authentification/notifications **OUVERT**
 
 Choisir stratégie session/passwords/anti-brute-force compatible runtime et méthode d'alerte au propriétaire sans risque de paiement, avec tests d'attaque et reprise.

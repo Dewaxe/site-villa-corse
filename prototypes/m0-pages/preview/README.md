@@ -49,3 +49,12 @@ Le 11 novembre 2026, l’alias dédié `m0-rollback` a servi successivement [A](
 À chaque étape, `preview/check.js exercice-m0` vérifie le HTML, l’image par SHA-256, les fichiers statiques et le refus des routes admin. Les marqueurs ont suivi la séquence absent, présent, absent. L’API a confirmé les trois déploiements en preview, zéro déploiement de production et Fail closed actif. L’accueil de l’alias initial était identique avant et après.
 
 Le test valide le redéploiement du code conservé sur un alias Preview. Les trois déploiements utilisent les mêmes données fictives D1/KV. La restauration de données reste un exercice distinct. [Rollback Pages](https://developers.cloudflare.com/pages/configuration/rollbacks/)
+
+
+## Restauration D1/KV hébergée
+
+Le 11 novembre 2026, l’export de la preview en lecture seule a récupéré deux révisions fictives dans D1, le pointeur publié en version 3 et deux médias KV. Le dossier de sauvegarde contient un manifeste, son empreinte SHA-256 et les deux binaires. Il reste dans le répertoire ignoré `backups`. Les empreintes ont été contrôlées avant l’import.
+
+La restauration a utilisé une base D1 et un namespace KV neufs, puis le même artefact Pages sur une [preview dédiée](https://6cd437a7.m0-restore-2890adfb.pages.dev/). D1 confirme le contenu des deux révisions et le pointeur publié. Les tables de clés et de sessions sont absentes. Les deux valeurs KV restaurées ont les mêmes empreintes que la sauvegarde.
+
+Le contrôle HTTP vérifie le refus admin, les fichiers statiques et les deux médias. Le HTML correspond à celui de la source une fois adaptée l’URL canonique de l’environnement. Cloudflare confirme le déploiement Preview et le réglage Fail closed. Le nouvel alias a répondu après un délai de disponibilité HTTPS.
