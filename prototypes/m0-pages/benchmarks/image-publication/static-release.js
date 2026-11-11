@@ -23,7 +23,8 @@ export async function buildStaticRelease(parent, origin, revision, source) {
     await mkdir(media, { recursive: true });
     await writeFile(join(article, "index.html"), renderArticle(revision, origin));
     await writeFile(join(media, revision.id + ".webp"), proof.output);
-    await writeFile(join(release, "_headers"), "/*\n  X-Robots-Tag: noindex\n  X-Content-Type-Options: nosniff\n");
+    await writeFile(join(release, "_headers"),
+      "/*\n  Cache-Control: no-store\n  X-Robots-Tag: noindex\n  X-Content-Type-Options: nosniff\n");
     await writeFile(join(release, "404.html"), "<!doctype html><html lang=fr><title>Page introuvable</title><h1>Page introuvable</h1>");
     return release;
   } catch (error) {

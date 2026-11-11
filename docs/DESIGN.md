@@ -56,6 +56,28 @@ Tokens de couleur (palette corse : mer, pierre, végétation, chaleur, à explor
 
 Créer **2 à 3 propositions de direction visuelle limitées** avant de coder toute la page ; présenter ordinateur + smartphone et faire valider William. La conception du parcours appartient au développeur, qui la justifie et la soumet à la vérification utilisateur.
 
+### Deux directions proposées pour le premier écran
+
+William retient la direction A, Panorama. Le cadrage et la lisibilité restent à vérifier sur les maquettes ordinateur et smartphone.
+
+**A — Panorama.** Une photo de la vue occupe le premier écran. Le titre « Une villa à Cargèse » et le lien « Voir sur Amivac » se détachent sur un fond bleu profond. Des titres en Instrument Serif et un texte en Inter accompagnent une palette de pierre claire et de bleu marin.
+
+| Ordinateur | Smartphone |
+| --- | --- |
+| Navigation en surimpression, titre et lien dans le bas de la photo. L’introduction commence sous le panorama. | Menu replié en haut, recadrage de la photo sur son point focal, titre et lien dans un bandeau sous la photo. L’introduction suit le bandeau. |
+
+Cette piste donne la priorité à la vue. Sur ordinateur, il faudra vérifier que la navigation garde un contraste suffisant sur les zones claires de la photo.
+
+**B — Carnet de séjour.** Le titre et le lien Amivac occupent un panneau ivoire à côté d’une photographie cadrée. Des titres en DM Serif Text et un texte en Source Sans 3 accompagnent une palette de sable, de vert maquis et de brun foncé.
+
+| Ordinateur | Smartphone |
+| --- | --- |
+| Navigation sur fond ivoire. Titre, courte introduction et lien à gauche, photo à droite. | Menu replié, titre et lien d’abord, photo pleine largeur ensuite. L’introduction suit la photo. |
+
+Cette piste facilite la lecture dès l’arrivée. Il faudra vérifier que le cadrage conserve assez de place pour la vue sur les deux formats.
+
+Les deux pistes sont à valider avec la même photo autorisée et le même texte. Sur ordinateur et smartphone, vérifier que l’on comprend où se trouve la villa et que l’on repère le lien Amivac dès le premier écran.
+
 ## Règles de performance visuelle
 
 - Charger d'abord la photo héros et les contenus visibles ; charger le reste à l'approche du viewport ou à l'ouverture d'une photo.

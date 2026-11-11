@@ -2,7 +2,7 @@
 
 **Règle :** la priorité est décidée par risque, dépendances, valeur et conformité, **jamais** par la popularité d'une fonctionnalité. Les jalons décrivent des incréments potentiellement livrables, pas des dates promises. Le périmètre peut évoluer par décision documentée.
 
-## M0 — Exploration professionnelle et fondations **[PROCHAIN]**
+## M0 — Exploration professionnelle et fondations **[VALIDÉ]**
 
 Le [cadrage technique M0](M0.md) documente la comparaison, les étapes du PoC et les preuves d'acceptation attendues.
 

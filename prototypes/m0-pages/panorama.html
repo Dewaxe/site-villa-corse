@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="fr">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Panorama — Maquette de la villa à Cargèse</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #f3eee4; color: #15303e; font: 1rem/1.55 Inter, sans-serif; }
+  .hero { position: relative; display: grid; align-items: end; min-height: 82svh; background: #15303e; color: white; }
+  .hero picture { position: absolute; inset: 0; }
+  .hero img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: center 55%; }
+  .nav, .intro { position: relative; padding: 1.5rem clamp(1.25rem, 6vw, 6rem); }
+  .nav { position: absolute; inset: 0 0 auto; background: #15303e; }
+  .nav a { color: inherit; }
+  .intro { background: #15303e; }
+  h1 { font: 400 clamp(2.8rem, 7vw, 6rem)/1 "Instrument Serif", Georgia, serif; margin: 0 0 1rem; }
+  .action { display: inline-block; padding: .7rem 1rem; color: #15303e; background: #f3eee4; border-radius: .25rem; }
+  a:focus-visible { outline: 3px solid #d8993e; outline-offset: 4px; }
+  section, footer { padding: 1.25rem clamp(1.25rem, 6vw, 6rem); }
+  footer a { color: inherit; }
+  @media (max-width: 640px) {
+    .hero { display: block; min-height: 0; }
+    .nav, .hero picture { position: static; }
+    .hero img { height: clamp(14rem, 50svh, 29rem); }
+  }
+</style>
+<main>
+  <div class="hero">
+    <picture>
+      <source media="(max-width: 640px)" srcset="assets/panorama/phone.webp">
+      <img src="assets/panorama/desktop.webp" width="1600" height="1067" alt="Le port de Cargèse et les maisons sur la colline">
+    </picture>
+    <nav class="nav" aria-label="Navigation principale"><a href="#villa">La villa</a></nav>
+    <div class="intro">
+      <h1>Une villa à Cargèse</h1>
+      <a class="action" href="https://www.amivac.com/" aria-describedby="reservation">Voir sur Amivac</a>
+    </div>
+  </div>
+  <section id="villa" aria-labelledby="titre-villa">
+    <h2 id="titre-villa">La villa</h2>
+    <p>Cargèse, Corse-du-Sud.</p>
+    <p id="reservation">Maquette. Le lien ouvre l’accueil d’Amivac. Le lien de l’annonce reste à valider.</p>
+  </section>
+</main>
+<footer>
+  Photo de démonstration, redimensionnée et convertie en WebP.
+  <a href="https://commons.wikimedia.org/wiki/File:Corse_-_Carg%C3%A8se_vue_du_port.jpg">Jean-Christophe BENOIST</a>,
+  <a href="https://creativecommons.org/licenses/by/3.0/">CC BY 3.0</a>.
+</footer>
+</html>
