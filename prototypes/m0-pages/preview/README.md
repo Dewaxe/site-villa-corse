@@ -40,3 +40,12 @@ Le 11 novembre 2026, l’API Cloudflare a confirmé `fail_open: false` dans les 
 Dans `ci-check.ps1`, Edge simule un refus 503 avant le handler sur les routes Functions de `_routes.json` de la preview en lecture seule. Les huit requêtes portent un cookie de session valide. Elles couvrent session, administration, brouillon, publication, article et média. Le JavaScript statique reçoit 200. Après rétablissement, la liste des révisions et le pointeur publié sont identiques.
 
 Le 503 est celui du simulateur. Le quota réel n’a pas été épuisé.
+
+
+## Retour à une version précédente en preview
+
+Le 11 novembre 2026, l’alias dédié `m0-rollback` a servi successivement [A](https://6b5c296b.m0-villa-corse-d651ac5b.pages.dev/), [B](https://fe1d86ee.m0-villa-corse-d651ac5b.pages.dev/) et [A restauré](https://e7ded5a1.m0-villa-corse-d651ac5b.pages.dev/). A reprend l’artefact de preuve conservé de `f4720b7`. B est une variante de test qui ajoute un commentaire HTML et un en-tête de Function. Le second envoi de A reprend les octets d’origine des deux fichiers.
+
+À chaque étape, `preview/check.js exercice-m0` vérifie le HTML, l’image par SHA-256, les fichiers statiques et le refus des routes admin. Les marqueurs ont suivi la séquence absent, présent, absent. L’API a confirmé les trois déploiements en preview, zéro déploiement de production et Fail closed actif. L’accueil de l’alias initial était identique avant et après.
+
+Le test valide le redéploiement du code conservé sur un alias Preview. Les trois déploiements utilisent les mêmes données fictives D1/KV. La restauration de données reste un exercice distinct. [Rollback Pages](https://developers.cloudflare.com/pages/configuration/rollbacks/)
