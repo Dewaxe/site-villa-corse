@@ -30,13 +30,24 @@ export async function dispatchPublication(id, env) {
 
 export async function validationCallback(request, env) {
   const path = new URL(request.url).pathname;
-  const match = /^\/internal\/publication\/([^/]+)\/(input|manifest|result|failure|stage|commit)$/.exec(path);
+  const match = /^\/internal\/publication\/([^/]+)\/(input|manifest|result|failure|stage|commit|static-deployed)$/.exec(path);
   const denied = () => new Response(null, { status: 404, headers });
   if (!match || !jobPattern.test(match[1])) return denied();
   const token = /^Bearer ([A-Za-z0-9_-]{43})$/.exec(request.headers.get("Authorization") ?? "")?.[1];
   if (!token || !/^[A-Za-z0-9_-]{43}$/.test(env.VALIDATION_TOKEN ?? "") ||
       !timingSafeEqual(Buffer.from(token), Buffer.from(env.VALIDATION_TOKEN))) return denied();
   const [, id, action] = match;
+  if (action === "static-deployed" && request.method === "POST" && env.PUBLICATION_STATIC_PROBE === "1") {
+    const source = request.headers.get("X-Source-SHA256");
+    if (!digestPattern.test(source ?? "")) return new Response(null, { status: 400, headers });
+    const job = await env.DB.prepare(`
+      UPDATE publication_jobs SET status = 'published'
+      WHERE id = ? AND source_sha256 = ? AND failed = 0 AND result_sha256 IS NULL
+        AND (status = 'published' OR (status = 'pending' AND expires_at > ?))
+      RETURNING id
+    `).bind(id, source, Date.now()).first();
+    return new Response(null, { status: job ? 204 : 409, headers });
+  }
   if (action === "manifest" && request.method === "GET" && env.PUBLICATION_STATIC_PROBE === "1") {
     const revision = await env.DB.prepare(`
       SELECT revision.id, revision.title, revision.description, revision.body, job.source_sha256

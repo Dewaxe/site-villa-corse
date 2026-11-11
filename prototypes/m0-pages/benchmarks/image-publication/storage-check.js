@@ -229,6 +229,20 @@ try {
   assert.equal((await commit(receipt.digest)).status, 200);
   assert.equal((await commit(receipt.digest)).status, 200);
   assert.equal(sqlite.prepare("SELECT revision_id FROM article_state").get().revision_id, retryAfterExpiry.id);
+  const version = sqlite.prepare("SELECT version FROM article_state").get().version;
+  const staticJob = await (await publish(version, dispatch, slowDraft)).json();
+  const staticUrl = origin + "/internal/publication/" + staticJob.id + "/static-deployed";
+  const acknowledge = (sourceHash, env = staticEnv) => validationCallback(new Request(staticUrl, {
+    method: "POST", headers: { ...splitHeaders, "X-Source-SHA256": sourceHash },
+  }), env);
+  assert.equal((await acknowledge("0".repeat(64))).status, 409);
+  assert.equal((await acknowledge(slowInput.job.source_sha256, validationEnv)).status, 404);
+  assert.equal((await acknowledge(slowInput.job.source_sha256)).status, 204);
+  assert.equal((await acknowledge(slowInput.job.source_sha256)).status, 204);
+  const staticStatusUrl = new URL(origin + "/api/articles/jobs/" + staticJob.id);
+  const staticStatus = await adminArticle(new Request(staticStatusUrl), db, images, staticStatusUrl.pathname);
+  assert.equal((await staticStatus.json()).status, "published");
+  assert.equal(sqlite.prepare("SELECT revision_id FROM article_state").get().revision_id, retryAfterExpiry.id);
   console.log("Handlers article : demande durable, dérivé privé, publication, panne KV, rejeu et résultat périmé vérifiés.");
 } finally {
   sqlite.close();

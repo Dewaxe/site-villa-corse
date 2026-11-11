@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { appendFile } from "node:fs/promises";
 import { buildStaticRelease } from "./static-release.js";
 import { processImage } from "./processor.js";
 
@@ -24,6 +25,7 @@ if (process.env.PUBLICATION_STATIC === "1") {
   const revision = await manifest.json();
   assert.equal(revision.source_sha256, digest);
   const release = await buildStaticRelease(process.env.RUNNER_TEMP, process.env.STATIC_ORIGIN, revision, bytes);
+  if (process.env.GITHUB_ENV) await appendFile(process.env.GITHUB_ENV, `M0_STATIC_SOURCE_SHA256=${digest}\n`);
   console.log(release);
   process.exit(0);
 }

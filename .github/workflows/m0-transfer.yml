@@ -87,3 +87,18 @@ jobs:
           wrangler="$PWD/node_modules/wrangler/bin/wrangler.js"
           cd "$M0_STATIC_RELEASE"
           node "$wrangler" pages deploy . --project-name "$STATIC_PROJECT" --branch static-test
+      - name: Report static deployment to the prototype
+        if: ${{ vars.M0_PUBLICATION_STATIC == '1' }}
+        env:
+          PUBLICATION_ORIGIN: ${{ vars.M0_PUBLICATION_ORIGIN }}
+          PUBLICATION_TOKEN: ${{ secrets.M0_PUBLICATION_TOKEN }}
+          PUBLICATION_JOB: ${{ inputs.job }}
+        run: |
+          [[ "$PUBLICATION_ORIGIN" =~ ^https://[a-z0-9-]+\.[a-z0-9-]+\.pages\.dev$ ]]
+          [[ "$PUBLICATION_JOB" =~ ^[0-9a-f-]{36}$ ]]
+          [[ "$M0_STATIC_SOURCE_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          status=$(curl --silent --show-error --max-time 20 --output /dev/null --write-out '%{http_code}' \
+            --request POST --header "Authorization: Bearer $PUBLICATION_TOKEN" \
+            --header "X-Source-SHA256: $M0_STATIC_SOURCE_SHA256" \
+            "$PUBLICATION_ORIGIN/internal/publication/$PUBLICATION_JOB/static-deployed")
+          [[ "$status" == 204 ]]
