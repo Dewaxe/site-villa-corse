@@ -63,11 +63,12 @@ try {
   const realFetch = globalThis.fetch;
   try {
     globalThis.fetch = async (url, options) => {
-      assert.match(url, /actions\/workflows\/m0-transfer\.yml\/dispatches$/);
+      assert.match(url, /actions\/workflows\/413876229\/dispatches$/);
+      assert.equal(options.headers.Authorization, "Bearer github_pat_test");
       assert.deepEqual(JSON.parse(options.body), { ref: "m0/routage-pages", inputs: { job: id } });
       return new Response(null, { status: 204 });
     };
-    await dispatchPublication(id, { GITHUB_DISPATCH_TOKEN: "test-only" });
+    await dispatchPublication(id, { GITHUB_DISPATCH_TOKEN: " github_pat_test " });
     await assert.rejects(dispatchPublication(id, {}), /non configuré/);
   } finally {
     globalThis.fetch = realFetch;

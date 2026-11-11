@@ -88,6 +88,8 @@ Tester variantes Web, compression et limites, cache à cohérence éventuelle, p
 
 **Raccordement au workflow.** Le Worker admin peut déclencher GitHub avec un identifiant opaque, et les routes de transfert et de retour exigent un secret distinct. Le navigateur suit la demande après un seul clic. Les tests locaux des handlers passent et GitHub accepte le déclenchement de contrôle sur la branche M0. La délégation limitée et le clic en preview restent à vérifier. [Protocole](../prototypes/m0-pages/benchmarks/image-publication/README.md#déclenchement-et-retour-de-résultat).
 
+**Clic de publication hébergé.** Le 11/11/2026, Edge a déclenché un traitement GitHub depuis le bouton admin. Le dérivé WebP a été renvoyé à Pages et publié via D1/KV. L’essai hébergé des pannes du runner et des fichiers corrompus reste à compléter. [Workflow](https://github.com/Dewaxe/site-villa-corse/actions/runs/43005104705).
+
 ### ADR-004 — Authentification/notifications **OUVERT**
 
 Choisir stratégie session/passwords/anti-brute-force compatible runtime et méthode d'alerte au propriétaire sans risque de paiement, avec tests d'attaque et reprise.

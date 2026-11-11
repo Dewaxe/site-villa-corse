@@ -111,8 +111,10 @@ async function publish(request, db, images, dispatch) {
     if (!queued.job) return json({ error: "Version périmée." }, queued.status);
     try {
       await dispatch(queued.job.id);
-    } catch {
-      return json({ error: "Traitement indisponible. La demande est conservée." }, 503);
+    } catch (error) {
+      const message = ["Déclencheur non configuré", "Connexion GitHub impossible (en-tête).", "Connexion GitHub impossible (réseau).", "Format du jeton GitHub invalide."].includes(error?.message) || /^Déclenchement GitHub refusé \(\d{3}\)\.$/.test(error?.message ?? "")
+        ? error.message : "Traitement indisponible. La demande est conservée.";
+      return json({ error: message }, 503);
     }
     return json({ pending: true, id: queued.job.id }, 202);
   }

@@ -65,3 +65,9 @@ La preview avec admin et le test du clic hébergé restent à réaliser. Un éch
 Depuis `prototypes/m0-pages`, lancer `node benchmarks/image-publication/stage-preview.js`. Le répertoire ignoré `.wrangler/publication-preview` contient le formulaire admin existant et les Functions à compiler. Le filtre exige l’origine exacte, une échéance et un jeton de preview. Les routes du runner vérifient séparément son jeton. Le test local confirme le refus anonyme et le refus après expiration.
 
 Configurer le secret `GITHUB_DISPATCH_TOKEN` dans **Preview** du projet Pages de test. Le contrôle d’accès hébergé et le clic de publication restent à vérifier après configuration du secret.
+
+## Clic Publier vérifié sur la preview le 11 novembre 2026
+
+Dans Edge, un compte fictif s’est connecté avec un authentificateur WebAuthn virtuel, a enregistré un brouillon, puis a cliqué une seule fois sur **Publier ou restaurer**. Pages a renvoyé 202. Le [job GitHub de publication](https://github.com/Dewaxe/site-villa-corse/actions/runs/43005104705) a réencodé l’image et transmis le dérivé. D1 confirme une demande publiée. L’interface affiche « Révision publiée » et le média livré se décode à 320 × 240. L’article était inaccessible avant le clic. Le test a aussi confirmé les refus sans jeton de preview et sans session admin.
+
+Les premiers essais ont renvoyé 503 et laissé la demande en attente. Le déploiement réussi utilise l’identifiant du workflow vérifié, normalise les espaces autour du jeton et traite explicitement le statut GitHub. Le job a créé zéro artefact. La variable et le secret temporaires GitHub ont été retirés. L’essai utilise une branche de preview et des ressources D1/KV fictives.

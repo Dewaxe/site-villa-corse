@@ -8,17 +8,22 @@ const headers = { "Cache-Control": "no-store", "X-Robots-Tag": "noindex" };
 
 export async function dispatchPublication(id, env) {
   if (!jobPattern.test(id) || !env.GITHUB_DISPATCH_TOKEN) throw new Error("Déclencheur non configuré");
+  const token = env.GITHUB_DISPATCH_TOKEN.trim();
+  if (!/^github_pat_[A-Za-z0-9_]+$/.test(token)) throw new Error("Format du jeton GitHub invalide.");
   const response = await fetch(
-    "https://api.github.com/repos/Dewaxe/site-villa-corse/actions/workflows/m0-transfer.yml/dispatches", {
-      method: "POST", redirect: "error",
+    "https://api.github.com/repos/Dewaxe/site-villa-corse/actions/workflows/413876229/dispatches", {
+      method: "POST", redirect: "manual",
       headers: {
-        Authorization: "Bearer " + env.GITHUB_DISPATCH_TOKEN,
+        Authorization: "Bearer " + token,
         Accept: "application/vnd.github+json",
         "Content-Type": "application/json", "User-Agent": "Villa-Corse-M0",
       },
       body: JSON.stringify({ ref: "m0/routage-pages", inputs: { job: id } }),
+    }).catch((error) => {
+      const cause = /header|byte|character/i.test(error?.message ?? "") ? "en-tête" : "réseau";
+      throw new Error("Connexion GitHub impossible (" + cause + ").");
     });
-  if (response.status !== 204) throw new Error("Déclenchement GitHub refusé");
+  if (![200, 204].includes(response.status)) throw new Error("Déclenchement GitHub refusé (" + response.status + ").");
 }
 
 export async function validationCallback(request, env) {
