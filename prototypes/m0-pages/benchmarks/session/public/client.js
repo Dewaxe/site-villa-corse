@@ -141,8 +141,16 @@ async function optimizeImage(file) {
 action("#save-draft", async () => {
   if (!draftForm.reportValidity()) return "Complète le brouillon.";
   const draft = new FormData(draftForm);
-  draft.set("image", await optimizeImage(draft.get("image")), "image.webp");
-  const response = await fetch("/api/articles/draft", { method: "POST", body: draft });
+  const image = await optimizeImage(draft.get("image"));
+  const fields = Object.fromEntries(["title", "description", "body"].map((name) => [name, draft.get(name)]));
+  const metadata = new TextEncoder().encode(JSON.stringify(fields));
+  const prefix = new Uint8Array(4);
+  new DataView(prefix.buffer).setUint32(0, metadata.length);
+  const response = await fetch("/api/articles/draft", {
+    method: "POST",
+    headers: { "Content-Type": "application/octet-stream" },
+    body: new Blob([prefix, metadata, image]),
+  });
   const result = await response.json();
   if (!response.ok) throw new Error(result.error);
   await loadRevisions(result.id);

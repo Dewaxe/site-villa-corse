@@ -47,6 +47,22 @@ const images = {
 const origin = "http://localhost:8791";
 const source = await sharp({ create: { width: 320, height: 240, channels: 3, background: "#437085" } })
   .webp().toBuffer();
+const metadata = Buffer.from(JSON.stringify({ title: "Cargèse", description: "Description", body: "Texte" }));
+const prefix = Buffer.alloc(4);
+prefix.writeUInt32BE(metadata.length);
+const frame = Buffer.concat([prefix, metadata, source]);
+const draftPath = "/api/articles/draft";
+const upload = (body) => adminArticle(new Request(origin + draftPath, {
+  method: "POST", headers: { "Content-Type": "application/octet-stream" }, body,
+}), db, images, draftPath);
+assert.equal((await upload(frame.subarray(0, -8))).status, 400);
+assert.equal(media.size, 0);
+assert.equal(sqlite.prepare("SELECT count(*) AS total FROM article_revisions").get().total, 0);
+const retried = await upload(frame);
+assert.equal(retried.status, 201);
+const { id: binaryDraft } = await retried.json();
+assert.deepEqual(Buffer.from(media.get("article/" + binaryDraft + ".webp")), source);
+assert.equal(sqlite.prepare("SELECT published FROM article_revisions WHERE id = ?").get(binaryDraft).published, 0);
 const draft = crypto.randomUUID();
 sqlite.prepare("INSERT INTO article_revisions (id,title,description,body) VALUES (?,?,?,?)")
   .run(draft, "Test", "Description", "Texte");

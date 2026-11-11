@@ -1,6 +1,6 @@
 import { queuePublication, validatedImageKey } from "./publication-jobs.js";
-import { isDemoWebP, readDraftForm } from "./webp.js";
-import { readJson, requestErrorStatus } from "./request-limits.js";
+import { isDemoWebP, isDemoWebPBytes, readDraftForm } from "./webp.js";
+import { readBoundedBytes, readJson, requestErrorStatus } from "./request-limits.js";
 
 const articlePath = "/articles/article-test";
 const mediaPrefix = "/media/article/";
@@ -65,22 +65,35 @@ export function publicArticle(request, db, images, url) {
 }
 
 async function createDraft(request, db, images) {
-  let form;
+  const names = ["title", "description", "body"];
+  let fields, image;
   try {
-    form = await readDraftForm(request);
+    if (request.headers.get("Content-Type") === "application/octet-stream") {
+      const bytes = await readBoundedBytes(request, 270_004);
+      if (bytes.length < 4) return json({ error: "Dépôt incomplet." }, 400);
+      const size = new DataView(bytes.buffer, bytes.byteOffset, 4).getUint32(0);
+      if (size > 20_000 || size > bytes.length - 4) return json({ error: "Champs invalides." }, 400);
+      const metadata = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes.subarray(4, 4 + size)));
+      fields = names.map((name) => metadata?.[name]);
+      image = bytes.subarray(4 + size);
+      if (!isDemoWebPBytes(image)) image = null;
+    } else {
+      const form = await readDraftForm(request);
+      fields = names.map((name) => form?.get(name));
+      const file = form?.get("image");
+      if (await isDemoWebP(file)) image = file.stream();
+    }
   } catch (error) {
     return json({ error: "Upload invalide ou trop volumineux." }, requestErrorStatus(error));
   }
-  const fields = ["title", "description", "body"].map((name) => form?.get(name));
   if (fields.some((value, index) => typeof value !== "string" || !value.trim() ||
       value.length > [120, 240, 4_000][index])) return json({ error: "Champs invalides." }, 400);
 
-  const image = form.get("image");
-  if (!(await isDemoWebP(image))) return json({ error: "WebP de démonstration invalide." }, 400);
+  if (!image) return json({ error: "WebP de démonstration invalide." }, 400);
 
   const id = crypto.randomUUID();
   try {
-    await images.put(mediaKey(id), image.stream());
+    await images.put(mediaKey(id), image);
   } catch {
     return json({ error: "Stockage de l’image indisponible." }, 503);
   }
