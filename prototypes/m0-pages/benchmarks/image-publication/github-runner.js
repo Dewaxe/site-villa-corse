@@ -15,8 +15,18 @@ const bytes = Buffer.from(await source.arrayBuffer());
 assert.ok(bytes.length <= 250_000);
 const digest = createHash("sha256").update(bytes).digest("hex");
 assert.equal(digest, source.headers.get("X-Source-SHA256"));
-const proof = await processImage(id, bytes);
-assert.ok(proof);
+let proof;
+try {
+  proof = await processImage(id, bytes);
+  assert.ok(proof);
+} catch {
+  const failure = await fetch(base + "/failure", {
+    method: "POST", redirect: "error", signal: AbortSignal.timeout(20_000),
+    headers: { Authorization: "Bearer " + token, "X-Source-SHA256": digest },
+  });
+  assert.equal(failure.status, 204);
+  throw new Error("Image refusée au décodage ou au réencodage.");
+}
 const result = await fetch(base + "/result", {
   method: "POST", redirect: "error", signal: AbortSignal.timeout(20_000),
   headers: { Authorization: "Bearer " + token, "Content-Type": "image/webp", "X-Source-SHA256": digest },

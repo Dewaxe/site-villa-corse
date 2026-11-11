@@ -7,7 +7,7 @@ import { processImage } from "./processor.js";
 import { validationCallback, dispatchPublication } from "../session/github-publication.js";
 
 const sqlite = new DatabaseSync(":memory:");
-for (const migration of ["0001_auth", "0002_recovery", "0003_article", "0004_hardening", "0005_publication_jobs"]) {
+for (const migration of ["0001_auth", "0002_recovery", "0003_article", "0004_hardening", "0005_publication_jobs", "0006_publication_failure"]) {
   sqlite.exec(await readFile(new URL("../session/migrations/" + migration + ".sql", import.meta.url), "utf8"));
 }
 function statement(sql, args = []) {
@@ -123,6 +123,19 @@ try {
   assert.equal(await finishPublication(db, images, staleId, laterProof.sourceSha256, laterProof.output), "stale");
   assert.equal(sqlite.prepare("SELECT revision_id FROM article_state").get().revision_id, id);
   assert.equal(sqlite.prepare("SELECT id FROM article_revisions WHERE id = ?").get(staleId), undefined);
+  const failedRequest = await publish(2, dispatch);
+  const failedId = (await failedRequest.json()).id;
+  const failedInput = await publicationInput(db, images, failedId);
+  const invalid = (sourceHash) => validationCallback(new Request(origin + "/internal/publication/" + failedId + "/failure", {
+    method: "POST", headers: { Authorization: "Bearer " + validationEnv.VALIDATION_TOKEN, "X-Source-SHA256": sourceHash },
+  }), validationEnv);
+  assert.equal((await invalid("wrong")).status, 409);
+  assert.equal((await invalid(failedInput.job.source_sha256)).status, 204);
+  assert.equal((await invalid(failedInput.job.source_sha256)).status, 204);
+  assert.equal(await publicationInput(db, images, failedId), null);
+  assert.equal(await finishPublication(db, images, failedId, failedInput.job.source_sha256, proof.output), "failed");
+  assert.equal((await publish(2, dispatch)).status, 422);
+  assert.equal(sqlite.prepare("SELECT revision_id FROM article_state").get().revision_id, id);
   console.log("Handlers article : demande durable, dérivé privé, publication, panne KV, rejeu et résultat périmé vérifiés.");
 } finally {
   sqlite.close();

@@ -109,6 +109,7 @@ async function publish(request, db, images, dispatch) {
   if (dispatch) {
     const queued = await queuePublication(db, images, revision.id, data.version);
     if (!queued.job) return json({ error: "Version périmée." }, queued.status);
+    if (queued.job.failed) return json({ error: "Image refusée. Enregistre un brouillon avec une nouvelle image." }, 422);
     try {
       await dispatch(queued.job.id);
     } catch (error) {
@@ -129,7 +130,7 @@ async function publish(request, db, images, dispatch) {
 export async function adminArticle(request, db, images, path, dispatch) {
   const jobPath = /^\/api\/articles\/jobs\/([0-9a-f-]{36})$/.exec(path);
   if (request.method === "GET" && jobPath) {
-    const job = await db.prepare("SELECT status FROM publication_jobs WHERE id = ?").bind(jobPath[1]).first();
+    const job = await db.prepare("SELECT CASE WHEN failed = 1 THEN 'failed' ELSE status END AS status FROM publication_jobs WHERE id = ?").bind(jobPath[1]).first();
     return job ? json(job) : json({ error: "Demande introuvable." }, 404);
   }
   if (request.method === "GET" && path === "/api/articles") {

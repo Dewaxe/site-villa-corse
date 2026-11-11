@@ -1,6 +1,6 @@
 import { Buffer } from "node:buffer";
 import { timingSafeEqual } from "node:crypto";
-import { publicationInput, finishPublication } from "./publication-jobs.js";
+import { publicationInput, finishPublication, failPublication } from "./publication-jobs.js";
 import { readBoundedBody } from "./request-limits.js";
 
 const jobPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -28,7 +28,7 @@ export async function dispatchPublication(id, env) {
 
 export async function validationCallback(request, env) {
   const path = new URL(request.url).pathname;
-  const match = /^\/internal\/publication\/([^/]+)\/(input|result)$/.exec(path);
+  const match = /^\/internal\/publication\/([^/]+)\/(input|result|failure)$/.exec(path);
   const denied = () => new Response(null, { status: 404, headers });
   if (!match || !jobPattern.test(match[1])) return denied();
   const token = /^Bearer ([A-Za-z0-9_-]{43})$/.exec(request.headers.get("Authorization") ?? "")?.[1];
@@ -40,6 +40,10 @@ export async function validationCallback(request, env) {
     return input ? new Response(input.bytes, { headers: {
       ...headers, "Content-Type": "image/webp", "X-Source-SHA256": input.job.source_sha256,
     } }) : denied();
+  }
+  if (action === "failure" && request.method === "POST") {
+    const failed = await failPublication(env.DB, id, request.headers.get("X-Source-SHA256"));
+    return new Response(null, { status: failed ? 204 : 409, headers });
   }
   if (action === "result" && request.method === "POST") {
     if (request.headers.get("Content-Type") !== "image/webp") return new Response(null, { status: 400, headers });

@@ -166,6 +166,7 @@ action("#publish", async () => {
       const response = await fetch("/api/articles/jobs/" + result.id);
       if (!response.ok) throw new Error("Suivi de validation indisponible.");
       state = await response.json();
+      if (state.status === "failed") throw new Error("Image refusée. La version précédente reste en ligne.");
       if (state.status === "stale") throw new Error("Une version plus récente a été publiée.");
     } while (state.status === "pending" && Date.now() < deadline);
     if (state.status !== "published") return "Validation encore en cours. La version précédente reste en ligne.";

@@ -22,7 +22,7 @@ export async function queuePublication(db, images, revision, version) {
 
 export async function publicationInput(db, images, id) {
   const job = await db.prepare("SELECT * FROM publication_jobs WHERE id = ?").bind(id).first();
-  if (!job || job.status !== "pending") return null;
+  if (!job || job.status !== "pending" || job.failed) return null;
   const bytes = await images.get(key(job.source_revision), "arrayBuffer");
   if (!bytes || await hash(bytes) !== job.source_sha256) return null;
   return { job, bytes };
@@ -33,6 +33,7 @@ export async function finishPublication(db, images, id, sourceHash, bytes) {
   if (!job) return "unknown";
   const digest = await hash(bytes);
   if (job.source_sha256 !== sourceHash) return "mismatch";
+  if (job.failed) return "failed";
   if (job.status !== "pending") {
     return job.result_sha256 === digest ? job.status : "mismatch";
   }
@@ -45,24 +46,33 @@ export async function finishPublication(db, images, id, sourceHash, bytes) {
       INSERT INTO article_revisions (id, title, description, body)
       SELECT ?, title, description, body FROM article_revisions WHERE id = ?
       AND EXISTS (SELECT 1 FROM article_state WHERE id = 1 AND version = ?)
-      AND EXISTS (SELECT 1 FROM publication_jobs WHERE id = ? AND status = 'pending')
+      AND EXISTS (SELECT 1 FROM publication_jobs WHERE id = ? AND status = 'pending' AND failed = 0)
       ON CONFLICT (id) DO NOTHING
     `).bind(id, job.source_revision, job.expected_version, id),
     db.prepare(`
       UPDATE article_state SET revision_id = ?, version = version + 1
       WHERE id = 1 AND version = ? AND EXISTS (
-        SELECT 1 FROM publication_jobs WHERE id = ? AND status = 'pending'
+        SELECT 1 FROM publication_jobs WHERE id = ? AND status = 'pending' AND failed = 0
       ) RETURNING version
     `).bind(id, job.expected_version, id),
     db.prepare(`
       UPDATE publication_jobs
       SET status = CASE WHEN changes() = 1 THEN 'published' ELSE 'stale' END,
           result_sha256 = ?
-      WHERE id = ? AND status = 'pending'
+      WHERE id = ? AND status = 'pending' AND failed = 0
     `).bind(digest, id),
   ]);
   const result = await db.prepare("SELECT status FROM publication_jobs WHERE id = ?").bind(id).first();
   return result.status;
+}
+
+export async function failPublication(db, id, sourceHash) {
+  const job = await db.prepare(`
+    UPDATE publication_jobs SET failed = 1
+    WHERE id = ? AND source_sha256 = ? AND status = 'pending'
+    RETURNING id
+  `).bind(id, sourceHash).first();
+  return Boolean(job);
 }
 
 export async function validatedImageKey(db, revision) {
