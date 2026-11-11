@@ -4,6 +4,7 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
+import sharp from "sharp";
 import { adminArticle, publicArticle } from "../session/articles.js";
 import { publicationInput, finishPublication } from "../session/publication-jobs.js";
 import { processImage } from "./processor.js";
@@ -44,7 +45,8 @@ const images = {
   },
 };
 const origin = "http://localhost:8791";
-const source = await readFile(new URL("../../.wrangler/webp-decoder/fixtures/small.bin", import.meta.url));
+const source = await sharp({ create: { width: 320, height: 240, channels: 3, background: "#437085" } })
+  .webp().toBuffer();
 const draft = crypto.randomUUID();
 sqlite.prepare("INSERT INTO article_revisions (id,title,description,body) VALUES (?,?,?,?)")
   .run(draft, "Test", "Description", "Texte");
