@@ -85,3 +85,6 @@ Undici est épinglé à 7.30.2 dans Miniflare. L'audit pnpm exécuté après l'i
 `node benchmarks/session/stage-physical-preview.js` prépare une preview temporaire dans `.wrangler/physical-preview`. Un code ouvre un cookie Secure et HttpOnly. La preview limite les routes à WebAuthn et utilise deux comptes fictifs dans une base D1 dédiée.
 
 Le 11 novembre 2026, le formulaire HTTPS a accepté le code. L’API session a renvoyé 404 sans code et 401 avec code avant connexion. Le test physique reste à effectuer. Utiliser le compte A sur ordinateur et B sur téléphone. Sur chaque appareil, ajouter une clé, se connecter, se déconnecter et se reconnecter.
+
+
+La soumission du formulaire a aussi été vérifiée dans Edge. Avec la politique de référent `no-referrer`, Edge envoyait `Origin: null` et recevait 404. Le formulaire utilise désormais `same-origin`. Edge envoie alors l’origine attendue, reçoit 303 et affiche le test WebAuthn. Un POST avec une origine tierce reçoit toujours 404.

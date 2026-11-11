@@ -55,7 +55,7 @@ export async function onRequest({ request, env, next }) {
   if (!matches(access, env.PROBE_TOKEN)) {
     if (url.pathname !== "/" || request.method !== "GET") return unavailable();
     return new Response('<!doctype html><html lang="fr"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Test des clés d’accès</title><h1>Test des clés d’accès</h1><form method="post" action="/access"><label>Code de test <input name="code" type="password" autocomplete="off" required></label> <button>Ouvrir le test</button></form></html>',
-      { headers: { ...headers, "Content-Type": "text/html; charset=utf-8" } });
+      { headers: { ...headers, "Referrer-Policy": "same-origin", "Content-Type": "text/html; charset=utf-8" } });
   }
   let result;
   if (["/", "/client.js"].includes(url.pathname) && request.method === "GET") {
