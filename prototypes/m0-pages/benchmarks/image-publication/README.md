@@ -71,3 +71,10 @@ Configurer le secret `GITHUB_DISPATCH_TOKEN` dans **Preview** du projet Pages de
 Dans Edge, un compte fictif s’est connecté avec un authentificateur WebAuthn virtuel, a enregistré un brouillon, puis a cliqué une seule fois sur **Publier ou restaurer**. Pages a renvoyé 202. Le [job GitHub de publication](https://github.com/Dewaxe/site-villa-corse/actions/runs/43005104705) a réencodé l’image et transmis le dérivé. D1 confirme une demande publiée. L’interface affiche « Révision publiée » et le média livré se décode à 320 × 240. L’article était inaccessible avant le clic. Le test a aussi confirmé les refus sans jeton de preview et sans session admin.
 
 Les premiers essais ont renvoyé 503 et laissé la demande en attente. Le déploiement réussi utilise l’identifiant du workflow vérifié, normalise les espaces autour du jeton et traite explicitement le statut GitHub. Le job a créé zéro artefact. La variable et le secret temporaires GitHub ont été retirés. L’essai utilise une branche de preview et des ressources D1/KV fictives.
+
+
+## Échec du traitement vérifié en preview
+
+Le 11 novembre 2026, le compte fictif B a soumis un WebP tronqué dont les en-têtes passaient le filtre. Le clic a reçu 202, puis Sharp a échoué à lire les pixels sur le [runner GitHub](https://github.com/Dewaxe/site-villa-corse/actions/runs/43005672578). Les réponses HTML et WebP de la révision publiée sont restées identiques octet pour octet. Le média de la nouvelle demande répondait 404. D1 comptait une demande publiée et une en attente.
+
+Le runner ne remonte pas encore son échec au tableau de bord. La demande en attente doit recevoir un état explicite avant ouverture du parcours.
