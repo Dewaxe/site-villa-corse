@@ -30,12 +30,23 @@ export async function checkArticle(page, context, waitForStatus) {
   };
 
   const state = async () => (await context.request.get(stateUrl)).json();
-  const draft = async (title, color) => {
+  const draft = async (title, color, keyboard = false) => {
     await page.locator('[name="title"]').fill(title);
     await page.locator('[name="description"]').fill('Description "test"');
     await page.locator('[name="body"]').fill("Texte pour " + title + " <script>alert(1)</script>");
     await page.locator('[name="image"]').setInputFiles(await file(color));
-    await page.click("#save-draft");
+    const saved = page.waitForResponse((response) => response.url() === stateUrl + "/draft" &&
+      response.request().method() === "POST");
+    const button = page.locator("#save-draft");
+    if (keyboard) {
+      await button.focus();
+      await page.keyboard.press("Enter");
+    } else {
+      await button.click();
+    }
+    const response = await saved;
+    assert.equal(response.request().headers()["content-type"], "application/octet-stream");
+    assert.equal(response.status(), 201);
     await waitForStatus("Brouillon enregistré.");
     return (await state()).revisions[0].id;
   };
@@ -120,7 +131,10 @@ export async function checkArticle(page, context, waitForStatus) {
     headers: { Origin: origin }, data: { id: v1, version: 1, filler: "x".repeat(1024) },
   });
   assert.equal(oversizedPublish.status(), 413);
-  const v2 = await draft("Version deux", "#cc4422");
+  const desktop = page.viewportSize();
+  await page.setViewportSize({ width: 390, height: 844 });
+  const v2 = await draft("Version deux", "#cc4422", true);
+  await page.setViewportSize(desktop);
   assert.equal((await fetch(imageUrl(v2))).status, 404);
   assert.equal((await readPublic(v1, "Version un")).html, first.html);
   const version = (await state()).version;

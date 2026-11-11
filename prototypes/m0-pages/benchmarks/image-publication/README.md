@@ -237,6 +237,58 @@ Le premier essai lancé depuis le dossier du prototype a embarqué ses Functions
 
 Le test local de stockage récupère le manifeste privé et le WebP via la même demande de publication. Il recalcule le SHA-256 et produit l’artefact à partir de ces réponses. Le manifeste est disponible sur demande active avec le jeton de validation et l’option `PUBLICATION_STATIC_PROBE=1`. L’accès anonyme, le mode désactivé et une demande déjà publiée répondent 404. Le raccordement d’un job GitHub qui assemble et déploie cet instantané reste à tester.
 
+### CPU du dépôt en preview
+
+Le 11/11/2026, Edge a envoyé quatre WebP fictifs via le parcours admin authentifié. Le premier dépôt a suivi 30 secondes d’inactivité. Les quatre requêtes ont répondu HTTP 201.
+
+| Heure UTC, en-tête HTTP Date | Octets | CPU Cloudflare |
+| --- | ---: | --- |
+| 21:44:55 | 150 930 | p99 agrégé de 5,049 ms pour deux invocations |
+| 21:45:01 | 150 850 | 3,388 ms |
+| 21:45:07 | 150 834 | 3,213 ms |
+| 21:45:14 | 150 858 | 4,350 ms, invocation unique à 21:45:13 |
+
+GraphQL identifie le script comme `__unknown__`. L’attribution des trois derniers relevés repose sur des fenêtres isolées avec une invocation par seconde. Le premier dépôt reste sans mesure individuelle. Ce lot couvre les images d’environ 151 ko. Les ressources Pages, D1 et KV temporaires ont été retirées.
+
+### Comparaison sur une photo de Cargèse
+
+Source de test : [Corse – Cargèse vue du port](https://commons.wikimedia.org/wiki/File:Corse_-_Carg%C3%A8se_vue_du_port.jpg), Jean-Christophe BENOIST, [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/). Original JPEG de 4 272 × 2 848 pixels et 3 752 888 octets. Les variantes ont été redimensionnées et converties en WebP avec Sharp.
+
+| Largeur | Qualité WebP | Octets |
+| ---: | ---: | ---: |
+| 1 600 px | 25 | 149 420 |
+| 1 600 px | 55 | 248 068 |
+| 800 px | 89 | 147 568 |
+
+À 600 px d’affichage, les deux variantes de 1 600 px sont proches. Dans un extrait affiché à sa taille réelle, la variante de 248 ko préserve davantage les détails des bateaux et de la végétation. La photo sert d’exemple de paysage détaillé pour l’essai.
+
+Le banc Edge authentifié a obtenu HTTP 201 pour les quatre dépôts. Les mesures GraphQL correspondent à des fenêtres isolées d’une invocation.
+
+| UTC, invocation Cloudflare | Octets | CPU |
+| --- | ---: | ---: |
+| 22:23:54, après 30 s d’inactivité | 248 068 | 11,913 ms |
+| 22:24:00 | 248 068 | 15,872 ms |
+| 22:24:06 | 149 420 | 5,598 ms |
+| 22:24:12 | 149 420 | 5,890 ms |
+
+Les deux dépôts proches de 250 ko dépassent la cible de 10 ms malgré leur succès HTTP. Les deux dépôts proches de 150 ko restent sous la cible sur cette photo. Le premier déploiement n’a pas atteint l’étape de dépôt dans le délai HTTPS. Le second a abouti après allongement de ce délai. Les deux projets Pages et leurs ressources D1 et KV ont été retirés.
+
+### Bilan CPU du dépôt binaire et du retour
+
+Le 11/11/2026, trois dépôts authentifiés du même WebP de 248 068 octets répondent HTTP `201` sur Pages en preview. Le navigateur envoie le JSON et le WebP dans un corps binaire borné. Le lot multipart de référence utilise le même WebP.
+
+| Invocation UTC | Dépôt binaire | CPU Cloudflare |
+| --- | --- | ---: |
+| 22:48:08 | Après 30 s d’inactivité | 5,737 ms |
+| 22:48:14 | Deuxième envoi | 8,754 ms |
+| 22:48:20 | Troisième envoi | 3,722 ms |
+
+Chaque fenêtre GraphQL compte une invocation (script `__unknown__`). Le maximum observé laisse 1,246 ms sous le [budget de 10 ms de Workers Free](https://developers.cloudflare.com/workers/platform/limits/#cpu-time). Le test local refuse un corps tronqué sans écriture, puis accepte le renvoi complet en brouillon privé. Les ressources Pages, D1 et KV de la mesure ont été retirées.
+
+Pour le retour du dérivé vers Pages, le [lot instrumenté](#retours-instrumentés) donne 13,217, 7,039, 18,001 et 6,151 ms sur quatre retours HTTP réussis. Deux appels dépassent la cible. Le prototype retient la publication statique : Actions lit la source privée, produit le WebP et le déploie avec le HTML. Aucun dérivé ne repasse par la Function. Le retour de statut est distinct et ne transporte pas l’image. Le [test en preview via le bouton Publier](https://github.com/Dewaxe/site-villa-corse/actions/runs/43101923127) a servi le HTML et le WebP en HTTP `200`, avec le SHA-256 attendu pour l’image.
+
+Les deux phases ont été mesurées. Le dépôt binaire tient dans la cible sur ce lot et le retour d’image initial est écarté. Ces essais distincts qualifient le choix pour le prototype M0 ; trois mesures sur un fichier ne garantissent pas la marge de l’admin en exploitation. Suivi : [issue #1](https://github.com/Dewaxe/site-villa-corse/issues/1) et [ADR-003](../../../../docs/DECISIONS.md#validation-des-images-après-la-mesure-cpu).
+
 ### Workflow du repli statique
 
 Le workflow `m0-transfer.yml` active le build statique avec la variable `M0_PUBLICATION_STATIC=1`. Le runner récupère l’image et le manifeste authentifiés, compare les empreintes et génère l’instantané dans `RUNNER_TEMP`. L’étape de déploiement reçoit le jeton Pages `M0_STATIC_PAGES_TOKEN` et les variables `M0_STATIC_ACCOUNT_ID`, `M0_STATIC_PROJECT` et `M0_STATIC_ORIGIN`. Elle lance Wrangler depuis l’instantané et cible la branche `static-test` d’un projet `m0-static-*`. L’essai local du runner a simulé les deux réponses HTTP et vérifié la génération de la page. Les tests de stockage et de génération passent.
