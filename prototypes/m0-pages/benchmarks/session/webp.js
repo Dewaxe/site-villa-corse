@@ -6,9 +6,12 @@ const maxDimension = 1_600;
 // Accept only the single lossy VP8 chunk produced by our opaque canvas.
 export async function isDemoWebP(file) {
   if (file?.type !== "image/webp" || file.size < 31 || file.size > maxImageBytes) return false;
+  return isDemoWebPBytes(new Uint8Array(await file.arrayBuffer()));
+}
 
-  const bytes = await file.arrayBuffer();
-  const view = new DataView(bytes);
+export function isDemoWebPBytes(bytes) {
+  if (bytes.byteLength < 31 || bytes.byteLength > maxImageBytes) return false;
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   if (view.getUint32(0) !== 0x52494646 || view.getUint32(4, true) !== bytes.byteLength - 8 ||
       view.getUint32(8) !== 0x57454250 || view.getUint32(12) !== 0x56503820) return false;
 

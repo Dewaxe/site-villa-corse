@@ -80,6 +80,8 @@ try {
 
   foreach ($file in (git ls-files -- '*.js')) { Invoke-Node --check $file }
   Invoke-Node --test benchmarks/session/hardening.test.js
+  Invoke-Node benchmarks/image-publication/storage-check.js
+  Invoke-Node benchmarks/image-publication/static-release-check.js
   Invoke-WithWrangler 8788 '/api/health' @(
     'pages', 'dev', 'public', '--ip', '127.0.0.1', '--port', '8788',
     '--compatibility-date', '2026-10-06', '--persist-to', ".wrangler/$name/pages"

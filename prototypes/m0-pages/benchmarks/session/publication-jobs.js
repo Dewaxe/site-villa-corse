@@ -1,4 +1,4 @@
-import { isDemoWebP } from "./webp.js";
+import { isDemoWebPBytes } from "./webp.js";
 
 const key = (id) => "article/" + id + ".webp";
 const hash = async (bytes) => [...new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))]
@@ -32,46 +32,72 @@ export async function publicationInput(db, images, id) {
   return { job, bytes };
 }
 
-export async function finishPublication(db, images, id, sourceHash, bytes) {
+export async function finishPublication(db, images, id, sourceHash, bytes, mark) {
   const job = await db.prepare("SELECT * FROM publication_jobs WHERE id = ?").bind(id).first();
+  mark?.("lookup");
   if (!job) return "unknown";
   const digest = await hash(bytes);
+  mark?.("digest");
   if (job.source_sha256 !== sourceHash) return "mismatch";
   if (job.failed) return "failed";
   if (job.status !== "pending") {
     return job.result_sha256 === digest ? job.status : "mismatch";
   }
   if (job.expires_at <= Date.now()) return "expired";
-  if (!(await isDemoWebP(new File([bytes], id, { type: "image/webp" })))) return "invalid";
-  // An immutable key shared by retries must contain the exact same bytes.
-  const outputKey = "validated/" + id + "/" + digest + ".webp";
-  await images.put(outputKey, bytes);
+  if (!await storeResult(images, id, bytes, digest, mark)) return "invalid";
+  return commitStagedPublication(db, id, sourceHash, digest, mark);
+}
+
+async function storeResult(images, id, bytes, digest, mark) {
+  const image = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  if (!isDemoWebPBytes(image)) return false;
+  mark?.("webp");
+  await images.put("validated/" + id + "/" + digest + ".webp", bytes);
+  mark?.("kv");
+  return true;
+}
+
+export async function stagePublication(images, id, bytes) {
+  const digest = await hash(bytes);
+  return await storeResult(images, id, bytes, digest) ? digest : null;
+}
+
+export async function commitStagedPublication(db, id, sourceHash, digest, mark) {
   const now = Date.now();
-  await db.batch([
+  const [, , , finalState] = await db.batch([
     db.prepare(`
       INSERT INTO article_revisions (id, title, description, body)
-      SELECT ?, title, description, body FROM article_revisions WHERE id = ?
-      AND EXISTS (SELECT 1 FROM article_state WHERE id = 1 AND version = ?)
-      AND EXISTS (SELECT 1 FROM publication_jobs WHERE id = ? AND status = 'pending' AND failed = 0 AND expires_at > ?)
+      SELECT job.id, revision.title, revision.description, revision.body
+      FROM publication_jobs AS job
+      JOIN article_revisions AS revision ON revision.id = job.source_revision
+      JOIN article_state AS state ON state.id = 1 AND state.version = job.expected_version
+      WHERE job.id = ? AND job.source_sha256 = ? AND job.status = 'pending'
+        AND job.failed = 0 AND job.expires_at > ?
       ON CONFLICT (id) DO NOTHING
-    `).bind(id, job.source_revision, job.expected_version, id, now),
+    `).bind(id, sourceHash, now),
     db.prepare(`
       UPDATE article_state SET revision_id = ?, version = version + 1
-      WHERE id = 1 AND version = ? AND EXISTS (
-        SELECT 1 FROM publication_jobs WHERE id = ? AND status = 'pending' AND failed = 0 AND expires_at > ?
-      ) RETURNING version
-    `).bind(id, job.expected_version, id, now),
+      WHERE id = 1 AND EXISTS (
+        SELECT 1 FROM publication_jobs AS job
+        WHERE job.id = ? AND job.source_sha256 = ? AND job.status = 'pending'
+          AND job.failed = 0 AND job.expires_at > ? AND job.expected_version = article_state.version
+      )
+    `).bind(id, id, sourceHash, now),
     db.prepare(`
       UPDATE publication_jobs
       SET status = CASE WHEN changes() = 1 THEN 'published' ELSE 'stale' END,
           result_sha256 = ?
-      WHERE id = ? AND status = 'pending' AND failed = 0 AND expires_at > ?
-    `).bind(digest, id, now),
+      WHERE id = ? AND source_sha256 = ? AND status = 'pending' AND failed = 0 AND expires_at > ?
+    `).bind(digest, id, sourceHash, now),
+    db.prepare("SELECT status, failed, expires_at, source_sha256, result_sha256 FROM publication_jobs WHERE id = ?").bind(id),
   ]);
-  const result = await db.prepare("SELECT status, failed, expires_at FROM publication_jobs WHERE id = ?").bind(id).first();
-  if (!result) return "expired";
+  mark?.("d1");
+  const [result] = finalState.results;
+  if (!result) return "unknown";
+  if (result.source_sha256 !== sourceHash) return "mismatch";
   if (result.failed) return "failed";
   if (result.status === "pending" && result.expires_at <= now) return "expired";
+  if (result.status !== "pending" && result.result_sha256 !== digest) return "mismatch";
   return result.status;
 }
 

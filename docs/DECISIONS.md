@@ -55,6 +55,8 @@ HTML dynamique serveur via Pages Functions **ou** pré-rendu déclenché à la p
 
 ### ADR-003 — Photos/versions/stocks KV **OUVERT**
 
+**Repli statique en essai, 11/11/2026.** Un build hors requête génère un dossier par révision avec le HTML échappé et un WebP décodé puis réencodé. Le dossier peut être servi par Pages comme un ensemble de fichiers statiques. Le test local vérifie les dossiers V1 et V2, le rejet d’un WebP tronqué et la conservation de V1. Le retour au déploiement précédent reste à tester pour cet artefact. Le parcours automatique depuis l’admin doit encore acheminer le brouillon et son image vers le build. S’il utilise le même dépôt HTTP via Pages Functions, ce dépôt conserve le risque CPU déjà mesuré. [Prototype](../prototypes/m0-pages/benchmarks/image-publication/README.md#repli-statique-local)
+
 Tester variantes Web, compression et limites, cache à cohérence éventuelle, purge des anciennes versions, export restaurable et consommation de l'offre gratuite.
 
 **Essai local.** Le navigateur réencode en WebP. Le serveur borne le multipart à 260 ko et l'image à 250 ko et 1 600 px par côté, vérifie le conteneur VP8 simple et refuse les métadonnées. Les images sont décodées dans Edge. KV conserve une clé immuable par révision. Les pannes injectées bloquent l'upload ou la publication. Une image publiée momentanément introuvable utilise un visuel de secours sans cache. La validation complète du bitstream, la propagation en preview et la procédure de sauvegarde hébergée restent ouvertes.
@@ -93,6 +95,8 @@ Tester variantes Web, compression et limites, cache à cohérence éventuelle, p
 **Clic de publication hébergé.** Le 11/11/2026, Edge a déclenché un traitement GitHub depuis le bouton admin. Le dérivé WebP a été renvoyé à Pages et publié via D1/KV. L’essai hébergé des pannes du runner et des fichiers corrompus reste à compléter. [Workflow](https://github.com/Dewaxe/site-villa-corse/actions/runs/43005104705).
 
 **Restauration hébergée.** Deux révisions fictives et leurs médias ont été exportés depuis la preview, puis restaurés dans des ressources D1/KV neuves. Le pointeur, le HTML hors origine canonique et les empreintes des médias concordent. Les sessions et clés d’accès restent hors export. [Preuve](../prototypes/m0-pages/preview/README.md#restauration-d1kv-hébergée).
+
+**Variante M0 en essai, 11/11/2026.** Comparer le retour actuel en une requête au stockage KV suivi d’une validation D1 dans une seconde requête. Le prototype signe un reçu qui lie l’identifiant de demande, le SHA-256 source et le SHA-256 du dérivé après succès de KV. La clé HMAC reste côté Pages. D1 vérifie l’état, l’échéance et la version avant publication. La variante conserve les services Free et ajoute une requête par publication. Elle peut laisser un dérivé privé orphelin si la seconde requête échoue. Avant adoption, établir la marge CPU, la reprise des deux phases et une politique de quota et de nettoyage des dérivés orphelins.
 
 ### ADR-004 — Authentification/notifications **OUVERT**
 

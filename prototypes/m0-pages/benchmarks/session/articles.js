@@ -25,16 +25,20 @@ async function articlePage(db, origin) {
   `).first();
   if (!revision) return json({ error: "Article introuvable." }, 404);
 
+  return new Response(renderArticle(revision, origin), {
+    headers: { ...headers, "Content-Type": "text/html; charset=utf-8" },
+  });
+}
+
+export function renderArticle(revision, origin) {
   const title = escape(revision.title);
-  return new Response(`<!doctype html>
+  return `<!doctype html>
 <html lang="fr"><head><meta charset="utf-8"><title>${title}</title>
 <meta name="description" content="${escape(revision.description)}">
 <link rel="canonical" href="${origin}${articlePath}"></head>
 <body><main><article><h1>${title}</h1><p>${escape(revision.body)}</p>
 <img src="${mediaPrefix}${revision.id}.webp" alt="Illustration de démonstration">
-</article></main></body></html>`, {
-    headers: { ...headers, "Content-Type": "text/html; charset=utf-8" },
-  });
+</article></main></body></html>`;
 }
 
 async function articleImage(db, images, revision) {

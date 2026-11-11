@@ -63,4 +63,27 @@ jobs:
           PUBLICATION_ORIGIN: ${{ vars.M0_PUBLICATION_ORIGIN }}
           PUBLICATION_TOKEN: ${{ secrets.M0_PUBLICATION_TOKEN }}
           PUBLICATION_JOB: ${{ inputs.job }}
-        run: node benchmarks/image-publication/github-runner.js
+          PUBLICATION_STATIC: ${{ vars.M0_PUBLICATION_STATIC }}
+          STATIC_ORIGIN: ${{ vars.M0_STATIC_ORIGIN }}
+        run: |
+          if [[ "$PUBLICATION_STATIC" == 1 ]]; then
+            release=$(node benchmarks/image-publication/github-runner.js)
+            printf 'M0_STATIC_RELEASE=%s\n' "$release" >> "$GITHUB_ENV"
+          else
+            node benchmarks/image-publication/github-runner.js
+          fi
+      - name: Deploy fictional static preview
+        if: ${{ vars.M0_PUBLICATION_STATIC == '1' }}
+        working-directory: prototypes/m0-pages
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.M0_STATIC_PAGES_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.M0_STATIC_ACCOUNT_ID }}
+          STATIC_PROJECT: ${{ vars.M0_STATIC_PROJECT }}
+          STATIC_ORIGIN: ${{ vars.M0_STATIC_ORIGIN }}
+        run: |
+          [[ "$STATIC_PROJECT" =~ ^m0-static-[a-z0-9]+$ ]]
+          [[ "$STATIC_ORIGIN" == "https://static-test.$STATIC_PROJECT.pages.dev" ]]
+          [[ "$M0_STATIC_RELEASE" == "$RUNNER_TEMP"/static-release-* ]]
+          wrangler="$PWD/node_modules/wrangler/bin/wrangler.js"
+          cd "$M0_STATIC_RELEASE"
+          node "$wrangler" pages deploy . --project-name "$STATIC_PROJECT" --branch static-test

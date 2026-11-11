@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { readJson, requestErrorStatus } from "./request-limits.js";
+import { readBoundedBytes, readJson, requestErrorStatus } from "./request-limits.js";
 
 function jsonRequest(body, headers = {}) {
   return new Request("http://localhost/test", {
@@ -32,4 +32,21 @@ test("JSON valide et type invalide sont distingués", async () => {
   assert.deepEqual(await readJson(jsonRequest('{"ok":true}')), { ok: true });
   await assert.rejects(readJson(jsonRequest("{}", { "Content-Type": "text/plain" })),
     (error) => requestErrorStatus(error) === 400);
+});
+
+test("Le lecteur binaire réunit les segments et contrôle la taille réelle", async () => {
+  function segmentedRequest() {
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(Uint8Array.of(1, 2));
+        controller.enqueue(Uint8Array.of(3, 4));
+        controller.close();
+      },
+    });
+    return jsonRequest(stream, { "Content-Length": "2" });
+  }
+
+  assert.deepEqual(await readBoundedBytes(segmentedRequest(), 4), Uint8Array.of(1, 2, 3, 4));
+  await assert.rejects(readBoundedBytes(segmentedRequest(), 3),
+    (error) => requestErrorStatus(error) === 413);
 });

@@ -1,9 +1,13 @@
 import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
-import { readFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { createHash } from "node:crypto";
 import { adminArticle, publicArticle } from "../session/articles.js";
 import { publicationInput, finishPublication } from "../session/publication-jobs.js";
 import { processImage } from "./processor.js";
+import { buildStaticRelease } from "./static-release.js";
 import { validationCallback, dispatchPublication } from "../session/github-publication.js";
 
 const sqlite = new DatabaseSync(":memory:");
@@ -81,11 +85,32 @@ try {
     new URL(origin + "/media/article/" + draft + ".webp"))).status, 404);
   const validationEnv = { DB: db, IMAGES: images, VALIDATION_TOKEN: "v".repeat(43) };
   const callbackUrl = origin + "/internal/publication/" + id;
+  const staticEnv = { ...validationEnv, PUBLICATION_STATIC_PROBE: "1" };
+  const manifestRequest = () => new Request(callbackUrl + "/manifest", {
+    headers: { Authorization: "Bearer " + validationEnv.VALIDATION_TOKEN },
+  });
+  assert.equal((await validationCallback(new Request(callbackUrl + "/manifest"), staticEnv)).status, 404);
+  assert.equal((await validationCallback(manifestRequest(), validationEnv)).status, 404);
+  const manifestResponse = await validationCallback(manifestRequest(), staticEnv);
+  assert.equal(manifestResponse.status, 200);
+  const manifest = await manifestResponse.json();
+  assert.equal(manifest.id, draft);
   assert.equal((await validationCallback(new Request(callbackUrl + "/input"), validationEnv)).status, 404);
   const privateInput = await validationCallback(new Request(callbackUrl + "/input", {
     headers: { Authorization: "Bearer " + validationEnv.VALIDATION_TOKEN },
   }), validationEnv);
   assert.equal(privateInput.status, 200);
+  assert.equal(manifest.source_sha256, privateInput.headers.get("X-Source-SHA256"));
+  const staticSource = Buffer.from(await privateInput.arrayBuffer());
+  assert.equal(createHash("sha256").update(staticSource).digest("hex"), manifest.source_sha256);
+  const staticRoot = await mkdtemp(join(tmpdir(), "villa-m0-handoff-"));
+  try {
+    const release = await buildStaticRelease(staticRoot, "https://villa.example", manifest, staticSource);
+    const html = await readFile(join(release, "articles", "article-test", "index.html"), "utf8");
+    assert.ok(html.includes(`/media/article/${draft}.webp`));
+  } finally {
+    await rm(staticRoot, { recursive: true, force: true });
+  }
   const input = await publicationInput(db, images, id);
   const proof = await processImage(id, Buffer.from(input.bytes));
   assert.ok(proof);
@@ -93,14 +118,22 @@ try {
   const brokenKv = { ...images, put: async () => { throw new Error("KV indisponible"); } };
   await assert.rejects(finishPublication(db, brokenKv, id, proof.sourceSha256, proof.output), /indisponible/);
   assert.equal(sqlite.prepare("SELECT version FROM article_state").get().version, 0);
-  const callback = await validationCallback(new Request(callbackUrl + "/result", {
+  const resultRequest = () => new Request(callbackUrl + "/result", {
     method: "POST", headers: {
       Authorization: "Bearer " + validationEnv.VALIDATION_TOKEN,
       "Content-Type": "image/webp", "X-Source-SHA256": proof.sourceSha256,
     }, body: proof.output,
-  }), validationEnv);
-  assert.equal(callback.status, 200);
-  assert.equal((await callback.json()).status, "published");
+  });
+  const competingOutput = Buffer.from(proof.output);
+  competingOutput[30] ^= 1;
+  const competingKv = { ...images, put: async (key, bytes) => {
+    await images.put(key, bytes);
+    const callback = await validationCallback(resultRequest(), { ...validationEnv, PUBLICATION_TIMINGS: "1" });
+    assert.equal(callback.status, 200);
+    assert.match(callback.headers.get("Server-Timing"), /^body;dur=\d+, lookup;dur=\d+, digest;dur=\d+, webp;dur=\d+, kv;dur=\d+, d1;dur=\d+$/);
+    assert.equal((await callback.json()).status, "published");
+  } };
+  assert.equal(await finishPublication(db, competingKv, id, proof.sourceSha256, competingOutput), "mismatch");
   const replayedCallback = await validationCallback(new Request(callbackUrl + "/result", {
     method: "POST", headers: {
       Authorization: "Bearer " + validationEnv.VALIDATION_TOKEN,
@@ -108,6 +141,8 @@ try {
     }, body: proof.output,
   }), validationEnv);
   assert.equal(replayedCallback.status, 200);
+  assert.equal((await validationCallback(manifestRequest(), staticEnv)).status, 404);
+  assert.equal(replayedCallback.headers.get("Server-Timing"), null);
   assert.equal((await replayedCallback.json()).status, "published");
   assert.equal(sqlite.prepare("SELECT version FROM article_state").get().version, 1);
   const url = new URL(origin + "/media/article/" + id + ".webp");
@@ -156,6 +191,42 @@ try {
   assert.notEqual(retryAfterExpiry.id, slow.id);
   assert.equal(await finishPublication(db, images, slow.id, slowInput.job.source_sha256, proof.output), "unknown");
   assert.equal(sqlite.prepare("SELECT revision_id FROM article_state").get().revision_id, id);
+  const stagedEnv = { ...validationEnv, PUBLICATION_RECEIPT_KEY: "r".repeat(43) };
+  const splitUrl = origin + "/internal/publication/" + retryAfterExpiry.id;
+  const splitHeaders = { Authorization: "Bearer " + stagedEnv.VALIDATION_TOKEN,
+    "X-Source-SHA256": slowInput.job.source_sha256 };
+  const stage = await validationCallback(new Request(splitUrl + "/stage", {
+    method: "POST", headers: { ...splitHeaders, "Content-Type": "image/webp" }, body: proof.output,
+  }), stagedEnv);
+  assert.equal(stage.status, 200);
+  const receipt = await stage.json();
+  assert.equal(sqlite.prepare("SELECT revision_id FROM article_state").get().revision_id, id);
+  // The runner can repeat the transfer if the first receipt was lost.
+  const repeatedStage = await validationCallback(new Request(splitUrl + "/stage", {
+    method: "POST", headers: { ...splitHeaders, "Content-Type": "image/webp" }, body: proof.output,
+  }), stagedEnv);
+  assert.equal(repeatedStage.status, 200);
+  assert.deepEqual(await repeatedStage.json(), receipt);
+  assert.equal(sqlite.prepare("SELECT revision_id FROM article_state").get().revision_id, id);
+  const wrongSource = { ...splitHeaders, "X-Source-SHA256": "0".repeat(64) };
+  const wrongStage = await validationCallback(new Request(splitUrl + "/stage", {
+    method: "POST", headers: { ...wrongSource, "Content-Type": "image/webp" }, body: proof.output,
+  }), stagedEnv);
+  assert.equal(wrongStage.status, 200);
+  const wrongReceipt = await wrongStage.json();
+  const wrongCommit = await validationCallback(new Request(splitUrl + "/commit", {
+    method: "POST", headers: { ...wrongSource, "X-Result-SHA256": wrongReceipt.digest,
+      "X-Publication-Receipt": wrongReceipt.receipt },
+  }), stagedEnv);
+  assert.equal(wrongCommit.status, 409);
+  assert.equal(sqlite.prepare("SELECT revision_id FROM article_state").get().revision_id, id);
+  const commit = (digest) => validationCallback(new Request(splitUrl + "/commit", {
+    method: "POST", headers: { ...splitHeaders, "X-Result-SHA256": digest, "X-Publication-Receipt": receipt.receipt },
+  }), stagedEnv);
+  assert.equal((await commit("0".repeat(64))).status, 409);
+  assert.equal((await commit(receipt.digest)).status, 200);
+  assert.equal((await commit(receipt.digest)).status, 200);
+  assert.equal(sqlite.prepare("SELECT revision_id FROM article_state").get().revision_id, retryAfterExpiry.id);
   console.log("Handlers article : demande durable, dérivé privé, publication, panne KV, rejeu et résultat périmé vérifiés.");
 } finally {
   sqlite.close();
