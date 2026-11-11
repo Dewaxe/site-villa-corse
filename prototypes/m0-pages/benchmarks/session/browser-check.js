@@ -1,3 +1,4 @@
+import { checkQuota } from "./quota-check.js";
 import { checkArticle } from "./article-check.js";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
@@ -161,7 +162,10 @@ try {
       assert.equal((await post("/api/keys/revoke", { id: spareId })).status(), 409);
     }
 
-    if (account === "demo-a") await checkArticle(page, context, waitForStatus);
+    if (account === "demo-a") {
+      await checkArticle(page, context, waitForStatus);
+      await checkQuota(page, context, origin);
+    }
 
     await page.click("#logout");
     await waitForStatus("Session révoquée.");

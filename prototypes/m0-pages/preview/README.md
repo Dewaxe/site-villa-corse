@@ -31,3 +31,12 @@ Remove-Item Env:M0_PAGES_ORIGIN
 ```
 
 Cloudflare ne propose le rollback natif que pour la production. Sur ce projet de preview, la preuve de retour de code consistera à redéployer l'artefact antérieur. [Rollback Pages](https://developers.cloudflare.com/pages/configuration/rollbacks/).
+
+
+## Simulation T-062 du refus d’invocation
+
+Le 11 novembre 2026, l’API Cloudflare a confirmé `fail_open: false` dans les configurations Preview des deux projets Pages M0. Pages Functions et Workers partagent 100 000 requêtes par jour sur Workers Free, réinitialisées à minuit UTC. [Routage Pages](https://developers.cloudflare.com/pages/functions/routing/) · [Quota partagé](https://developers.cloudflare.com/pages/functions/pricing/)
+
+Dans `ci-check.ps1`, Edge simule un refus 503 avant le handler sur les routes Functions de `_routes.json` de la preview en lecture seule. Les huit requêtes portent un cookie de session valide. Elles couvrent session, administration, brouillon, publication, article et média. Le JavaScript statique reçoit 200. Après rétablissement, la liste des révisions et le pointeur publié sont identiques.
+
+Le 503 est celui du simulateur. Le quota réel n’a pas été épuisé.
