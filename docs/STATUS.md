@@ -1,9 +1,9 @@
 # État du projet
 
-**12/11/2026 — M0, dossier de clôture en revue.**
+**12/11/2026 — M0 validé par William.**
 
 - **Clôture M0** — Suite locale verte (`./prototypes/m0-pages/ci-check.ps1`). Trois previews statiques servent le HTML et le WebP attendus sur leurs URLs propres et sur l’alias, y compris après le retour à V1. L’ancienne URL du média reste en cache sur l’alias à V2. [Preuves et limites](../prototypes/m0-pages/benchmarks/image-publication/README.md#cache-des-instantanés) · [Issue de clôture](https://github.com/Dewaxe/site-villa-corse/issues/3).
-- **Budget** — Le plan Workers Free est confirmé par William dans la revue du 11/11. Les trois déploiements réutilisent le projet de démonstration et n’ont demandé ni activation ni paiement. Le détail de facturation du compte reste à vérifier dans une session Cloudflare authentifiée.
+- **Budget** — William confirme Workers Free, sans facturation ni moyen de paiement. La règle permanente figure dans [AGENTS.md](../AGENTS.md). Les trois déploiements réutilisent le projet de démonstration sans nouvelle activation.
 
 - **Banc CPU image M0** — Trois dépôts binaires du même WebP de 248 068 octets répondent HTTP 201 sous 10 ms (5,737 ms après inactivité, puis 8,754 et 3,722 ms). Le test local refuse un envoi tronqué puis accepte le renvoi complet en brouillon privé. L’ancien retour du dérivé dépasse parfois 10 ms ; le build statique via Actions supprime cette requête. La marge en exploitation reste à vérifier avant ouverture de l’admin. [Bilan](../prototypes/m0-pages/benchmarks/image-publication/README.md#bilan-cpu-du-dépôt-binaire-et-du-retour) · [Issue #1](https://github.com/Dewaxe/site-villa-corse/issues/1).
 
