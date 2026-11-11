@@ -289,6 +289,14 @@ Pour le retour du dérivé vers Pages, le [lot instrumenté](#retours-instrument
 
 Les deux phases ont été mesurées. Le dépôt binaire tient dans la cible sur ce lot et le retour d’image initial est écarté. Ces essais distincts qualifient le choix pour le prototype M0 ; trois mesures sur un fichier ne garantissent pas la marge de l’admin en exploitation. Suivi : [issue #1](https://github.com/Dewaxe/site-villa-corse/issues/1) et [ADR-003](../../../../docs/DECISIONS.md#validation-des-images-après-la-mesure-cpu).
 
+### Cache des instantanés
+
+**Reprise du 12/11/2026.** Trois déploiements statiques fictifs sur le même alias dédié : [V1](https://ba6693c2.m0-villa-corse-d651ac5b.pages.dev/articles/article-test/), [V2](https://8dd6faae.m0-villa-corse-d651ac5b.pages.dev/articles/article-test/) et [retour V1 par redéploiement](https://a70e4886.m0-villa-corse-d651ac5b.pages.dev/articles/article-test/). Pour chaque étape, les réponses HTML et WebP sont en `200` et correspondent aux SHA-256 du dossier généré sur l’URL propre au déploiement et sur l’alias. `no-store` et `noindex` sont présents. Les premières paires vérifiées ont été obtenues 0,70 s, 0,85 s et 0,59 s après le retour de Wrangler, respectivement, depuis un seul point de mesure. Ces durées ne mesurent pas la propagation mondiale.
+
+À V2, l’ancienne URL du WebP V1 renvoie `404` sur l’URL propre à V2 et `200` avec `CF-Cache-Status: HIT` sur l’alias. La page V2 référence le WebP V2 dont l’empreinte diffère de V1. Le critère M0 de cohérence de l’article et de son média est satisfait. Ce test ne démontre pas qu’un ancien média déjà public disparaît immédiatement de toutes ses URLs.
+
+Avec `Cache-Control: no-store`, l’alias a servi le HTML et le WebP V2 en `200`. L’ancien WebP V1 a encore répondu `200` avec `CF-Cache-Status: HIT` sur l’alias. Le même chemin sur l’URL propre au déploiement V2 a répondu `404`. Les deux réponses WebP V2 sont à `200`. Vérifier l’instantané sur l’URL du déploiement et la paire HTML/WebP attendue sur l’alias. La présence d’une ancienne URL en cache ne renseigne pas sur le contenu du nouvel instantané.
+
 ### Workflow du repli statique
 
 Le workflow `m0-transfer.yml` active le build statique avec la variable `M0_PUBLICATION_STATIC=1`. Le runner récupère l’image et le manifeste authentifiés, compare les empreintes et génère l’instantané dans `RUNNER_TEMP`. L’étape de déploiement reçoit le jeton Pages `M0_STATIC_PAGES_TOKEN` et les variables `M0_STATIC_ACCOUNT_ID`, `M0_STATIC_PROJECT` et `M0_STATIC_ORIGIN`. Elle lance Wrangler depuis l’instantané et cible la branche `static-test` d’un projet `m0-static-*`. L’essai local du runner a simulé les deux réponses HTTP et vérifié la génération de la page. Les tests de stockage et de génération passent.
