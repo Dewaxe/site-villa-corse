@@ -118,6 +118,8 @@ Choisir stratégie session/passwords/anti-brute-force compatible runtime et mét
 
 **Réduction des appels D1.** La vérification consomme le défi et récupère la clé du compte en une instruction. Le traitement conserve la limite de tentatives et le contrôle du compteur lors de la création de session. Le nombre d’allers-retours D1 d’une vérification réussie passe de quatre à trois. En preview, le p95 passe de 10,927 ms à 6,157 ms entre deux lots de huit appels. La marge en exploitation et les appareils physiques restent à qualifier. [Relevé](../prototypes/m0-pages/auth-preview/README.md#reprise-après-regroupement-d1).
 
+**Essai physique.** William confirme le 11 novembre 2026 que le parcours WebAuthn a fonctionné sur deux appareils physiques, avec le compte A sur Chrome sous Windows et le compte B sur Chrome sur iPhone. La base D1 de test contient une clé pour chacun des deux comptes. Le réenrôlement après perte des deux clés reste à qualifier.
+
 ### ADR-005 — Cartographie aérienne **OUVERT**
 
 Étudier IGN WMTS/couverture Cargèse, attribution, fallback plan, bibliothèques de tracé et performance. Prototype tôt, implémentation finale M4.
