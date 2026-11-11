@@ -45,7 +45,7 @@
 
 **Preuves et réexamen.** Les conditions des offres et la procédure de DNS externe sont documentées. Revoir l'ADR après démonstration sur un environnement isolé, avec preuves de gratuité sur le compte, mesures CPU, tests de publication et d'accès, et restauration vérifiée. Le raccordement DNS effectif relève d'un jalon ultérieur. Lien de PR à renseigner après raccordement GitHub. La décision Notion existante est repérée, avec synchronisation en attente de confirmation de l'écriture.
 
-**Revue du 11/11/2026, proposée à William.** Retenir Cloudflare Pages Free, Pages Functions, D1 et KV, avec WebAuthn pour les comptes admin et GitHub Actions pour décoder et réencoder les images en arrière-plan. IONOS conserve le DNS. Le test de publication, les deux appareils, le routage, le retour de code et la restauration hébergée sont vérifiés. La [revue M0](M0.md#revue-de-clôture-du-11-novembre-2026) distingue les conditions de passage à M1 et celles de mise en ligne.
+**Décision adoptée par William le 11/11/2026.** Retenir Cloudflare Pages Free, Pages Functions, D1 et KV, avec WebAuthn pour les comptes admin et GitHub Actions pour décoder et réencoder les images en arrière-plan. IONOS conserve le DNS. Le test de publication, les deux appareils, le routage, le retour de code et la restauration hébergée sont vérifiés. La [revue M0](M0.md#revue-de-clôture-du-11-novembre-2026) distingue les conditions de passage à M1 et celles de mise en ligne.
 
 ### ADR-002 — Publication d'articles / indexation **OUVERT**
 
