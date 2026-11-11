@@ -77,4 +77,11 @@ Les premiers essais ont renvoyé 503 et laissé la demande en attente. Le déplo
 
 Le 11 novembre 2026, le compte fictif B a soumis un WebP tronqué dont les en-têtes passaient le filtre. Le clic a reçu 202, puis Sharp a échoué à lire les pixels sur le [runner GitHub](https://github.com/Dewaxe/site-villa-corse/actions/runs/43005672578). Les réponses HTML et WebP de la révision publiée sont restées identiques octet pour octet. Le média de la nouvelle demande répondait 404. D1 comptait une demande publiée et une en attente.
 
-Le runner ne remonte pas encore son échec au tableau de bord. La demande en attente doit recevoir un état explicite avant ouverture du parcours.
+Lors de ce premier essai, la demande est restée en attente malgré le rejet.
+
+
+## Message de rejet vérifié dans Edge
+
+Le 11 novembre 2026, Edge a publié une image de référence puis soumis un WebP tronqué. Le [workflow](https://github.com/Dewaxe/site-villa-corse/actions/runs/43006216865) a signalé le rejet au Worker. D1 comptait une demande publiée et une en échec. Edge a affiché « Image refusée. La version précédente reste en ligne. » Le HTML et le média précédents sont restés identiques. Le média rejeté répond 404.
+
+Le test local vérifie aussi le refus d’une mauvaise empreinte, le rejeu du signal et l’impossibilité de publier un résultat reçu après le rejet. Un runner interrompu avant son appel de retour peut encore laisser une demande en attente.
