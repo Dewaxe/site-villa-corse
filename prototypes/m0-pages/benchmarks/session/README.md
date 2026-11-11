@@ -78,3 +78,10 @@ D1 compte les tentatives par opération et par compte sur 60 secondes. Les opér
 Une session dure 15 minutes, mais l'ajout ou la révocation d'une clé exige une authentification WebAuthn de moins de deux minutes. D1 vérifie à nouveau la fraîcheur lors de l'écriture. La CI vieillit une session fictive en base, vérifie que sa lecture reste possible mais que les mutations de clés renvoient 403, puis rejoue la connexion et poursuit le test. Une ancienne session migrée reçoit une date d'authentification nulle et doit se reconnecter pour modifier les clés.
 
 Undici est épinglé à 7.30.2 dans Miniflare. L'audit pnpm exécuté après l'installation verrouillée ne signale aucun avis connu. Le décodage complet du WebP côté serveur, la protection d'accès à l'essai distant et les mesures CPU restent à vérifier avant l'ouverture.
+
+
+## Essai WebAuthn sur appareils physiques
+
+`node benchmarks/session/stage-physical-preview.js` prépare une preview temporaire dans `.wrangler/physical-preview`. Un code ouvre un cookie Secure et HttpOnly. La preview limite les routes à WebAuthn et utilise deux comptes fictifs dans une base D1 dédiée.
+
+Le 11 novembre 2026, le formulaire HTTPS a accepté le code. L’API session a renvoyé 404 sans code et 401 avec code avant connexion. Le test physique reste à effectuer. Utiliser le compte A sur ordinateur et B sur téléphone. Sur chaque appareil, ajouter une clé, se connecter, se déconnecter et se reconnecter.
