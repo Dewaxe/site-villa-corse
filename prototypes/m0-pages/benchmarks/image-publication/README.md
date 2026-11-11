@@ -58,3 +58,10 @@ Les tests locaux couvrent le contenu du déclenchement, l’absence d’accès a
 Pour la prochaine preview, prévoir deux autorisations distinctes. `GITHUB_DISPATCH_TOKEN` est un secret Cloudflare limité à Actions en écriture sur ce seul dépôt. `VALIDATION_TOKEN` est un jeton aléatoire de 32 octets partagé avec le secret GitHub `M0_PUBLICATION_TOKEN`. La variable GitHub `M0_PUBLICATION_ORIGIN` désigne la preview de test. Le navigateur ne reçoit aucun de ces secrets. [Permissions GitHub](https://docs.github.com/en/rest/actions/workflows#create-a-workflow-dispatch-event)
 
 La preview avec admin et le test du clic hébergé restent à réaliser. Un échec du runner laisse actuellement la demande en attente et la révision précédente en ligne. La remontée d’un état d’échec explicite reste à tester avant ouverture.
+
+
+## Préparer la preview du parcours admin
+
+Depuis `prototypes/m0-pages`, lancer `node benchmarks/image-publication/stage-preview.js`. Le répertoire ignoré `.wrangler/publication-preview` contient le formulaire admin existant et les Functions à compiler. Le filtre exige l’origine exacte, une échéance et un jeton de preview. Les routes du runner vérifient séparément son jeton. Le test local confirme le refus anonyme et le refus après expiration.
+
+Configurer le secret `GITHUB_DISPATCH_TOKEN` dans **Preview** du projet Pages de test. Le contrôle d’accès hébergé et le clic de publication restent à vérifier après configuration du secret.
