@@ -2,7 +2,7 @@
 
 **11/11/2026 — M0, prototype en cours.**
 
-- **Prochaine tâche** — Traiter les demandes sans réponse du runner et tester WebAuthn sur appareils physiques. Le [rejet avec message dans l’admin](https://github.com/Dewaxe/site-villa-corse/actions/runs/43006216865) est vérifié sur la preview.
+- **Prochaine tâche** — Tester WebAuthn sur appareils physiques et terminer la simulation du quota épuisé. Le [scénario sans réponse du runner](https://github.com/Dewaxe/site-villa-corse/actions/runs/43007071758) affiche l’expiration dans Edge.
 - **Décisions** — [ADR-001](DECISIONS.md#adr-001--hébergement-et-stack-full-stack) propose Pages + Functions + D1 + KV. IONOS reste le DNS autoritatif. La stack et le routage de production attendent les preuves du prototype.
 - **Vérifié** — Routage Pages et refus admin. Deux comptes WebAuthn dans Edge avec clés virtuelles, rejeu refusé, récupération et révocation testées. Cycle article WebP et restauration D1/KV vérifiés en local. Une rafale sur un compte laisse l’autre disponible. Le [banc WebP Rust/Wasm](../prototypes/m0-pages/benchmarks/webp-decoder/README.md) décode deux images dans Wrangler et refuse leurs versions tronquées. En preview, le décodage dépasse le budget CPU de 10 ms sur les deux tailles testées. [Preuves du banc](../prototypes/m0-pages/benchmarks/session/README.md) et [ADR-003](DECISIONS.md#adr-003--photosversionsstocks-kv-ouvert). Orthophoto IGN et repli vérifiés dans Edge.
 - **À valider** — Réenrôlement après perte des deux clés, appareils physiques, marge CPU WebAuthn, CPU d’upload et décodage WebP complet, sauvegarde hébergée et retour de déploiement, carte sur appareils physiques, comportement en cas de quota épuisé. Le sous-domaine reste à choisir.

@@ -84,4 +84,11 @@ Lors de ce premier essai, la demande est restée en attente malgré le rejet.
 
 Le 11 novembre 2026, Edge a publié une image de référence puis soumis un WebP tronqué. Le [workflow](https://github.com/Dewaxe/site-villa-corse/actions/runs/43006216865) a signalé le rejet au Worker. D1 comptait une demande publiée et une en échec. Edge a affiché « Image refusée. La version précédente reste en ligne. » Le HTML et le média précédents sont restés identiques. Le média rejeté répond 404.
 
-Le test local vérifie aussi le refus d’une mauvaise empreinte, le rejeu du signal et l’impossibilité de publier un résultat reçu après le rejet. Un runner interrompu avant son appel de retour peut encore laisser une demande en attente.
+Le test local vérifie aussi le refus d’une mauvaise empreinte, le rejeu du signal et l’impossibilité de publier un résultat reçu après le rejet. Avant l’ajout d’une échéance, un runner interrompu avant son appel de retour pouvait laisser la demande en attente.
+
+
+## Demande sans réponse
+
+Une demande expire après huit minutes, dont six pour la durée maximale du workflow et deux de marge pour le démarrage. Le serveur refuse les résultats tardifs et vérifie l’échéance dans la transaction de publication. Un nouveau clic après expiration attribue un nouvel identifiant au même brouillon. Les traitements précédents ne peuvent plus publier cette demande.
+
+Dans Edge, le [workflow de contrôle](https://github.com/Dewaxe/site-villa-corse/actions/runs/43007071758) a été déclenché sans exécuter le traitement. L’échéance de la seule demande fictive a été avancée en D1 pour simuler l’attente. L’interface a affiché « Le traitement n’a pas répondu à temps. Tu peux relancer la publication. » Le HTML et le WebP précédents étaient identiques et le média du brouillon renvoyait 404. Le test local couvre aussi l’expiration pendant l’écriture KV et le refus d’un retour lié à l’ancien identifiant.

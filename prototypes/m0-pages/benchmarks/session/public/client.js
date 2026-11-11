@@ -159,13 +159,14 @@ action("#publish", async () => {
   const result = await post("/api/articles/publish", { id: revisions.value, version });
   if (result.pending) {
     status.textContent = "Image en cours de validation…";
-    const deadline = Date.now() + 5 * 60_000;
+    const deadline = Date.now() + result.remainingMs + 5_000;
     let state;
     do {
       await new Promise((resolve) => setTimeout(resolve, 2000));
       const response = await fetch("/api/articles/jobs/" + result.id);
       if (!response.ok) throw new Error("Suivi de validation indisponible.");
       state = await response.json();
+      if (state.status === "expired") throw new Error("Le traitement n’a pas répondu à temps. Tu peux relancer la publication.");
       if (state.status === "failed") throw new Error("Image refusée. La version précédente reste en ligne.");
       if (state.status === "stale") throw new Error("Une version plus récente a été publiée.");
     } while (state.status === "pending" && Date.now() < deadline);

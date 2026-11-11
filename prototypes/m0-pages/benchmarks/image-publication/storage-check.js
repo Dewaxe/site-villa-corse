@@ -7,7 +7,7 @@ import { processImage } from "./processor.js";
 import { validationCallback, dispatchPublication } from "../session/github-publication.js";
 
 const sqlite = new DatabaseSync(":memory:");
-for (const migration of ["0001_auth", "0002_recovery", "0003_article", "0004_hardening", "0005_publication_jobs", "0006_publication_failure"]) {
+for (const migration of ["0001_auth", "0002_recovery", "0003_article", "0004_hardening", "0005_publication_jobs", "0006_publication_failure", "0007_publication_deadline"]) {
   sqlite.exec(await readFile(new URL("../session/migrations/" + migration + ".sql", import.meta.url), "utf8"));
 }
 function statement(sql, args = []) {
@@ -45,9 +45,9 @@ const draft = crypto.randomUUID();
 sqlite.prepare("INSERT INTO article_revisions (id,title,description,body) VALUES (?,?,?,?)")
   .run(draft, "Test", "Description", "Texte");
 await images.put("article/" + draft + ".webp", source);
-const publish = (version, dispatch) => adminArticle(new Request(origin + "/api/articles/publish", {
+const publish = (version, dispatch, revision = draft) => adminArticle(new Request(origin + "/api/articles/publish", {
   method: "POST", headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ id: draft, version }),
+  body: JSON.stringify({ id: revision, version }),
 }), db, images, "/api/articles/publish", dispatch);
 
 try {
@@ -135,6 +135,26 @@ try {
   assert.equal(await publicationInput(db, images, failedId), null);
   assert.equal(await finishPublication(db, images, failedId, failedInput.job.source_sha256, proof.output), "failed");
   assert.equal((await publish(2, dispatch)).status, 422);
+  assert.equal(sqlite.prepare("SELECT revision_id FROM article_state").get().revision_id, id);
+  const slowDraft = crypto.randomUUID();
+  sqlite.prepare("INSERT INTO article_revisions (id,title,description,body) VALUES (?,?,?,?)")
+    .run(slowDraft, "Test lent", "Description", "Texte");
+  await images.put("article/" + slowDraft + ".webp", source);
+  const slow = await (await publish(2, dispatch, slowDraft)).json();
+  const slowInput = await publicationInput(db, images, slow.id);
+  assert.ok(slow.remainingMs > 0);
+  const expiresDuringWrite = { ...images, put: async (key, bytes) => {
+    await images.put(key, bytes);
+    sqlite.prepare("UPDATE publication_jobs SET expires_at = 0 WHERE id = ?").run(slow.id);
+  } };
+  assert.equal(await finishPublication(db, expiresDuringWrite, slow.id, slowInput.job.source_sha256, proof.output), "expired");
+  assert.equal(await publicationInput(db, images, slow.id), null);
+  const statusUrl = origin + "/api/articles/jobs/" + slow.id;
+  const expired = await adminArticle(new Request(statusUrl), db, images, new URL(statusUrl).pathname);
+  assert.equal((await expired.json()).status, "expired");
+  const retryAfterExpiry = await (await publish(2, dispatch, slowDraft)).json();
+  assert.notEqual(retryAfterExpiry.id, slow.id);
+  assert.equal(await finishPublication(db, images, slow.id, slowInput.job.source_sha256, proof.output), "unknown");
   assert.equal(sqlite.prepare("SELECT revision_id FROM article_state").get().revision_id, id);
   console.log("Handlers article : demande durable, dérivé privé, publication, panne KV, rejeu et résultat périmé vérifiés.");
 } finally {
